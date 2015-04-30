@@ -490,7 +490,7 @@ function graphics.init()
 end
 
 return graphics
- end end)()end;
+end end)()end;
 do require("package").preload["hate.opengl"] = (function() local package;return function(...)-- <pack hate.opengl> --
 local ffi = require("ffi")
 
@@ -2668,7 +2668,8 @@ setmetatable(openGL.gl, gl_mt)
 -- Note: You'll need to make sure the appropriate LibGL is loaded.
 -- SDL2 will do this when you call SDL_Init(SDL_INIT_VIDEO), for example.
 
-return openGL end end)()end;
+return openGL
+end end)()end;
 do require("package").preload["hate.window"] = (function() local package;return function(...)-- <pack hate.window> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
@@ -2711,7 +2712,7 @@ function window.setFullscreen(fullscreen, fstype)
 end
 
 return window
- end end)()end;
+end end)()end;
 do require("package").preload["hate.system"] = (function() local package;return function(...)-- <pack hate.system> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
@@ -2776,7 +2777,7 @@ function system.openURL(path)
 end
 
 return system
- end end)()end;
+end end)()end;
 do require("package").preload["hate.filesystem"] = (function() local package;return function(...)-- <pack hate.filesystem> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 
@@ -2932,7 +2933,7 @@ function filesystem.isFused()
 end
 
 return filesystem
- end end)()end;
+end end)()end;
 do require("package").preload["hate.sdl2.defines"] = (function() local package;return function(...)-- <pack hate.sdl2.defines> --
 -- Function definitions which were not output by
 -- the C preprocessor
@@ -2992,7 +2993,7 @@ local function registerdefines(sdl)
 end
 
 return registerdefines
- end end)()end;
+end end)()end;
 do require("package").preload["hate.sdl2.cdefs"] = (function() local package;return function(...)-- <pack hate.sdl2.cdefs> --
 -- Cut and paste from the C preprocessor output
 -- Removed inline/defined functions which are not supported by luajit
@@ -5598,7 +5599,7 @@ SDL_WINDOWPOS_UNDEFINED_MASK = 0x1FFF0000,
 SDL_WINDOWPOS_UNDEFINED = 0x1FFF0000
 };
 ]]
- end end)()end;
+end end)()end;
 do require("package").preload["hate.sdl2.init"] = (function() local package;return function(...)-- <pack hate.sdl2.init> --
 -- Do not change this file manually
 -- Generated with dev/create-init.lua
@@ -7094,7 +7095,7 @@ register('WINDOWPOS_UNDEFINED', 'SDL_WINDOWPOS_UNDEFINED')
 registerdefines(sdl)
 
 return sdl
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.intersect"] = (function() local package;return function(...)-- <pack hate.cpml.modules.intersect> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
@@ -7197,7 +7198,7 @@ function intersect.circle_circle(c1, c2)
 end
 
 return intersect
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.vec3"] = (function() local package;return function(...)-- <pack hate.cpml.modules.vec3> --
 --[[
 Copyright (c) 2010-2013 Matthias Richter
@@ -7442,7 +7443,7 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.constants"] = (function() local package;return function(...)-- <pack hate.cpml.modules.constants> --
 local constants = {}
 
@@ -7453,7 +7454,7 @@ constants.FLT_EPSILON = 1.19209290e-07
 constants.DOT_THRESHOLD = 0.9995
 
 return constants
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.simplex"] = (function() local package;return function(...)-- <pack hate.cpml.modules.simplex> --
 --
 -- Based on code in "Simplex noise demystified", by Stefan Gustavson
@@ -7809,7 +7810,8 @@ do
 end
 
 -- Export the module.
-return M end end)()end;
+return M
+end end)()end;
 do require("package").preload["hate.cpml.modules.quat"] = (function() local package;return function(...)-- <pack hate.cpml.modules.quat> --
 -- quaternions
 -- Author: Andrew Stacey
@@ -8345,7 +8347,7 @@ end
 -- the module
 return setmetatable({ new = new },
 { __call = function(_, ...) return new(...) end })
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.color"] = (function() local package;return function(...)-- <pack hate.cpml.modules.color> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local utils = require(current_folder .. "utils")
@@ -8570,7 +8572,7 @@ function color.linear_to_gamma(r, g, b, a)
 end
 
 return setmetatable({new = new}, color)
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.mat4"] = (function() local package;return function(...)-- <pack hate.cpml.modules.mat4> --
 -- double 4x4, 1-based, column major
 -- local matrix = {}
@@ -8988,7 +8990,7 @@ function mat4:to_vec4s()
 end
 
 return mat4
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.vec2"] = (function() local package;return function(...)-- <pack hate.cpml.modules.vec2> --
 --[[
 Copyright (c) 2010-2013 Matthias Richter
@@ -9181,7 +9183,7 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.mesh"] = (function() local package;return function(...)-- <pack hate.cpml.modules.mesh> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
@@ -9201,7 +9203,7 @@ function mesh.average(vertices)
 end
 
 return mesh
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.modules.utils"] = (function() local package;return function(...)-- <pack hate.cpml.modules.utils> --
 local utils = {}
 
@@ -9229,7 +9231,7 @@ function utils.wrap(v, n)
 end
 
 return utils
- end end)()end;
+end end)()end;
 do require("package").preload["hate.cpml.init"] = (function() local package;return function(...)-- <pack hate.cpml.init> --
 --[[
                   .'@@@@@@@@@@@@@@#:
@@ -9286,7 +9288,7 @@ for _, v in ipairs(files) do
 end
 
 return cpml
- end end)()end;
+end end)()end;
 do require("package").preload["hate.timer"] = (function() local package;return function(...)-- <pack hate.timer> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
@@ -9363,7 +9365,7 @@ function timer.getFPS()
 end
 
 return timer
- end end)()end;
+end end)()end;
 do require("package").preload["hate.physfs"] = (function() local package;return function(...)-- <pack hate.physfs> --
 local ffi = require "ffi"
 local cdef = ffi.cdef([[
@@ -9527,7 +9529,7 @@ register("getLinkedVersion", "PHYSFS_getLinkedVersion")
 register("permitSymbolicLinks", "PHYSFS_permitSymbolicLinks")
 
 return physfs
- end end)()end;
+end end)()end;
 do require("package").preload["hate.math"] = (function() local package;return function(...)-- <pack hate.math> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local cpml = require(current_folder .. "cpml")
@@ -9544,7 +9546,7 @@ function math.gammaToLinear(...)
 end
 
 return math
- end end)()end;
+end end)()end;
 do require("package").preload["hate.init"] = (function() local package;return function(...)-- <pack hate.init> --
 local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 
@@ -10039,7 +10041,7 @@ function hate.errhand(msg)
 end
 
 return hate
- end end)()end;
+end end)()end;
 do -- preload auto aliasing...
 	local p = require("package").preload
 	for k,v in pairs(p) do
