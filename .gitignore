@@ -1,3 +1,5 @@
 # These can't be used by HATE, they're reserved for users.
 conf.lua
 main.lua
+/aio.lua
+/aio-cli
