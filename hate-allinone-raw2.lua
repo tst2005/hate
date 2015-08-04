@@ -1,5 +1,5 @@
 #!/usr/bin/env luajit
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.graphics", ([[-- <pack hate.graphics> --
+do local sources = {};sources["hate.graphics"]=([[-- <pack hate.graphics> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
@@ -491,8 +491,8 @@ function graphics.init()
 end
 
 return graphics
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.opengl", ([[-- <pack hate.opengl> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.opengl"]=([[-- <pack hate.opengl> --
 local ffi = require("ffi")
 
 -- glcorearb.h
@@ -2670,8 +2670,8 @@ setmetatable(openGL.gl, gl_mt)
 -- SDL2 will do this when you call SDL_Init(SDL_INIT_VIDEO), for example.
 
 return openGL
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.window", ([[-- <pack hate.window> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.window"]=([[-- <pack hate.window> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
@@ -2713,8 +2713,8 @@ function window.setFullscreen(fullscreen, fstype)
 end
 
 return window
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.system", ([[-- <pack hate.system> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.system"]=([[-- <pack hate.system> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
@@ -2778,8 +2778,8 @@ function system.openURL(path)
 end
 
 return system
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.filesystem", ([[-- <pack hate.filesystem> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.filesystem"]=([[-- <pack hate.filesystem> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 
 local ffi = require "ffi"
@@ -2944,8 +2944,8 @@ function filesystem.isFused()
 end
 
 return filesystem
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.sdl2.defines", ([[-- <pack hate.sdl2.defines> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.sdl2.defines"]=([[-- <pack hate.sdl2.defines> --
 -- Function definitions which were not output by
 -- the C preprocessor
 
@@ -3004,8 +3004,8 @@ local function registerdefines(sdl)
 end
 
 return registerdefines
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.sdl2.cdefs", ([[-- <pack hate.sdl2.cdefs> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.sdl2.cdefs"]=([[-- <pack hate.sdl2.cdefs> --
 -- Cut and paste from the C preprocessor output
 -- Removed inline/defined functions which are not supported by luajit
 -- Instead, those are defined into defines.lua
@@ -5610,8 +5610,8 @@ SDL_WINDOWPOS_UNDEFINED_MASK = 0x1FFF0000,
 SDL_WINDOWPOS_UNDEFINED = 0x1FFF0000
 };
 \]\]
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.sdl2.init", ([[-- <pack hate.sdl2.init> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.sdl2.init"]=([[-- <pack hate.sdl2.init> --
 -- Do not change this file manually
 -- Generated with dev/create-init.lua
 
@@ -7106,8 +7106,8 @@ register('WINDOWPOS_UNDEFINED', 'SDL_WINDOWPOS_UNDEFINED')
 registerdefines(sdl)
 
 return sdl
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.intersect", ([[-- <pack hate.cpml.modules.intersect> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.intersect"]=([[-- <pack hate.cpml.modules.intersect> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 local constants = require(current_folder .. "constants")
@@ -7209,8 +7209,8 @@ function intersect.circle_circle(c1, c2)
 end
 
 return intersect
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.vec3", ([[-- <pack hate.cpml.modules.vec3> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.vec3"]=([[-- <pack hate.cpml.modules.vec3> --
 --\[\[
 Copyright (c) 2010-2013 Matthias Richter
 
@@ -7450,8 +7450,8 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.constants", ([[-- <pack hate.cpml.modules.constants> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.constants"]=([[-- <pack hate.cpml.modules.constants> --
 local constants = {}
 
 -- same as C's FLT_EPSILON
@@ -7461,8 +7461,8 @@ constants.FLT_EPSILON = 1.19209290e-07
 constants.DOT_THRESHOLD = 0.9995
 
 return constants
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.simplex", ([[-- <pack hate.cpml.modules.simplex> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.simplex"]=([[-- <pack hate.cpml.modules.simplex> --
 --
 -- Based on code in "Simplex noise demystified", by Stefan Gustavson
 -- www.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf
@@ -7818,8 +7818,8 @@ end
 
 -- Export the module.
 return M
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.quat", ([[-- <pack hate.cpml.modules.quat> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.quat"]=([[-- <pack hate.cpml.modules.quat> --
 -- quaternions
 -- Author: Andrew Stacey
 -- Website: http://www.math.ntnu.no/~stacey/HowDidIDoThat/iPad/Codea.html
@@ -8118,8 +8118,8 @@ end
 -- the module
 return setmetatable({ new = new },
 { __call = function(_, ...) return new(...) end })
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.color", ([[-- <pack hate.cpml.modules.color> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.color"]=([[-- <pack hate.cpml.modules.color> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local utils = require(current_folder .. "utils")
 local color = {}
@@ -8343,8 +8343,8 @@ function color.linear_to_gamma(r, g, b, a)
 end
 
 return setmetatable({new = new}, color)
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.mat4", ([[-- <pack hate.cpml.modules.mat4> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.mat4"]=([[-- <pack hate.cpml.modules.mat4> --
 -- double 4x4, 1-based, column major
 -- local matrix = {}
 
@@ -8761,8 +8761,8 @@ function mat4:to_vec4s()
 end
 
 return mat4
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.vec2", ([[-- <pack hate.cpml.modules.vec2> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.vec2"]=([[-- <pack hate.cpml.modules.vec2> --
 --\[\[
 Copyright (c) 2010-2013 Matthias Richter
 
@@ -8954,8 +8954,8 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.mesh", ([[-- <pack hate.cpml.modules.mesh> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.mesh"]=([[-- <pack hate.cpml.modules.mesh> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 
@@ -8974,8 +8974,8 @@ function mesh.average(vertices)
 end
 
 return mesh
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.modules.utils", ([[-- <pack hate.cpml.modules.utils> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.modules.utils"]=([[-- <pack hate.cpml.modules.utils> --
 local utils = {}
 
 function utils.clamp(v, min, max)
@@ -9009,8 +9009,8 @@ function utils.is_pot(n)
 end
 
 return utils
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.cpml.init", ([[-- <pack hate.cpml.init> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.cpml.init"]=([[-- <pack hate.cpml.init> --
 --\[\[
                   .'@@@@@@@@@@@@@@#:
               ,@@@@#;            .'@@@@+
@@ -9068,8 +9068,8 @@ for _, v in ipairs(files) do
 end
 
 return cpml
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.timer", ([[-- <pack hate.timer> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.timer"]=([[-- <pack hate.timer> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 
@@ -9145,8 +9145,8 @@ function timer.getFPS()
 end
 
 return timer
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.physfs", ([[-- <pack hate.physfs> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.physfs"]=([[-- <pack hate.physfs> --
 local ffi = require "ffi"
 local cdef = ffi.cdef(\[\[
 typedef unsigned char PHYSFS_uint8;
@@ -9309,8 +9309,8 @@ register("getLinkedVersion", "PHYSFS_getLinkedVersion")
 register("permitSymbolicLinks", "PHYSFS_permitSymbolicLinks")
 
 return physfs
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.math", ([[-- <pack hate.math> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.math"]=([[-- <pack hate.math> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local cpml = require(current_folder .. "cpml")
 
@@ -9326,8 +9326,8 @@ function math.gammaToLinear(...)
 end
 
 return math
-]]):gsub('\\([%]%[])','%1'))end
-do local loadstring=loadstring;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode))(...)end;end)("hate.init", ([[-- <pack hate.init> --
+]]):gsub('\\([%]%[])','%1')
+sources["hate.init"]=([[-- <pack hate.init> --
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 
 local ffi = require "ffi"
@@ -9823,7 +9823,7 @@ function hate.errhand(msg)
 end
 
 return hate
-]]):gsub('\\([%]%[])','%1'))end
+]]):gsub('\\([%]%[])','%1')
 do -- preload auto aliasing...
 	local p = require("package").preload
 	for k,v in pairs(p) do
@@ -9841,3 +9841,6 @@ package.path = package.path .. ";./?/init.lua"
 hate = require "hate"
 
 return hate.init()
+local loadstring=loadstring; local preload = require"package".preload
+for name, rawcode in pairs(sources) do preload[name]=function(...)return loadstring(rawcode)(...)end end
+end;
