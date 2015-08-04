@@ -1,10 +1,11 @@
 #!/bin/sh
 
-# see https://github.com/tst2005/luamodules-all-in-one-file/
-# wget https://raw.githubusercontent.com/tst2005/luamodules-all-in-one-file/newtry/pack-them-all.lua
-ALLINONE=./aio.lua
+# see https://github.com/tst2005/lua-aio
+# wget https://raw.githubusercontent.com/tst2005/lua-aio/aio.lua
+# wget https://raw.githubusercontent.com/tst2005/lua-aio/aio-cli
+ALLINONE=./aio-cli
 
-for mode in lua raw; do
+for mode in lua raw raw2; do
 
 "$ALLINONE" \
 --shebang init.lua \
@@ -34,6 +35,7 @@ for mode in lua raw; do
 --mod hate.init				hate/init.lua \
 --autoaliases \
 --code init.lua \
+--finish \
 > "./hate-allinone-$mode.lua"
 
 done
