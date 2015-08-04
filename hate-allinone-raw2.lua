@@ -9824,6 +9824,9 @@ end
 
 return hate
 ]]):gsub('\\([%]%[])','%1')
+local loadstring=loadstring; local preload = require"package".preload
+for name, rawcode in pairs(sources) do preload[name]=function(...)return loadstring(rawcode)(...)end end
+end;
 do -- preload auto aliasing...
 	local p = require("package").preload
 	for k,v in pairs(p) do
@@ -9841,6 +9844,3 @@ package.path = package.path .. ";./?/init.lua"
 hate = require "hate"
 
 return hate.init()
-local loadstring=loadstring; local preload = require"package".preload
-for name, rawcode in pairs(sources) do preload[name]=function(...)return loadstring(rawcode)(...)end end
-end;
