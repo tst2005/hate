@@ -33,6 +33,7 @@ for mode in lua raw raw2; do
 --mod hate.physfs			hate/physfs.lua \
 --mod hate.math				hate/math.lua \
 --mod hate.init				hate/init.lua \
+--finish \
 --autoaliases \
 --code init.lua \
 --finish \
