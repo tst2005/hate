@@ -1,6 +1,6 @@
 #!/usr/bin/env luajit
-do local sources = {};sources["hate.graphics"]=([[-- <pack hate.graphics> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+do local sources, priorities = {}, {};assert(not sources["hate.graphics"])sources["hate.graphics"]=([===[-- <pack hate.graphics> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
 local cpml = require(current_folder .. "cpml")
@@ -9,18 +9,18 @@ local graphics = {}
 
 local function load_shader(src, type)
 	local function validate(shader)
-		local int = ffi.new("GLint\[1\]")
+		local int = ffi.new("GLint[1]")
 		gl.GetShaderiv(shader, GL.INFO_LOG_LENGTH, int)
-		local length = int\[0\]
+		local length = int[0]
 		if length <= 0 then
 			return
 		end
 		gl.GetShaderiv(shader, GL.COMPILE_STATUS, int)
-		local success = int\[0\]
+		local success = int[0]
 		if success == GL.TRUE then
 			return
 		end
-		local buffer = ffi.new("char\[?\]", length)
+		local buffer = ffi.new("char[?]", length)
 		gl.GetShaderInfoLog(shader, length, int, buffer)
 		error(ffi.string(buffer))
 	end
@@ -28,8 +28,8 @@ local function load_shader(src, type)
 	if shader == 0 then
 		error("glGetError: " .. tonumber(gl.GetError()))
 	end
-	local src = ffi.new("char\[?\]", #src, src)
-	local srcs = ffi.new("const char*\[1\]", src)
+	local src = ffi.new("char[?]", #src, src)
+	local srcs = ffi.new("const char*[1]", src)
 	gl.ShaderSource(shader, 1, srcs, nil)
 	gl.CompileShader(shader)
 	validate(shader)
@@ -74,7 +74,7 @@ end
 
 function graphics.setBackgroundColor(r, g, b, a)
 	if type(r) == "table" then
-		r, g, b, a = r\[1\], r\[2\], r\[3\], r\[4\] or 255
+		r, g, b, a = r[1], r[2], r[3], r[4] or 255
 	end
 	graphics._background_color = { r, g, b, a }
 	gl.ClearColor(r / 255, g / 255, b / 255, a / 255)
@@ -86,7 +86,7 @@ end
 
 function graphics.setColor(r, g, b, a)
 	if type(r) == "table" then
-		r, g, b, a = r\[1\], r\[2\], r\[3\], r\[4\] or 255
+		r, g, b, a = r[1], r[2], r[3], r[4] or 255
 	end
 	graphics._color = { r, g, b, a }
 
@@ -94,10 +94,10 @@ function graphics.setColor(r, g, b, a)
 end
 
 function graphics.getDimensions()
-	local w, h = ffi.new("int\[1\]"), ffi.new("int\[1\]")
+	local w, h = ffi.new("int[1]"), ffi.new("int[1]")
 	sdl.GL_GetDrawableSize(graphics._state.window, w, h)
 
-	return tonumber(w\[0\]), tonumber(h\[0\])
+	return tonumber(w[0]), tonumber(h[0])
 end
 
 function graphics.getWidth()
@@ -134,20 +134,20 @@ end
 
 local function elements_for_mode(buffer_type)
 	local t = {
-		\[GL.TRIANGLES\] = 3,
-		\[GL.TRIANGLE_STRIP\] = 1,
-		\[GL.LINES\] = 2,
-		\[GL.POINTS\] = 1
+		[GL.TRIANGLES] = 3,
+		[GL.TRIANGLE_STRIP] = 1,
+		[GL.LINES] = 2,
+		[GL.POINTS] = 1
 	}
-	assert(t\[buffer_type\])
-	return t\[buffer_type\]
+	assert(t[buffer_type])
+	return t[buffer_type]
 end
 
 local function submit_buffer(buffer_type, mode, data, count)
-	local handle = ffi.new("GLuint\[1\]")
+	local handle = ffi.new("GLuint[1]")
 	gl.GenBuffers(1, handle)
 	ffi.gc(handle, function(h) gl.DeleteBuffers(1, h) end)
-	gl.BindBuffer(buffer_type, handle\[0\])
+	gl.BindBuffer(buffer_type, handle[0])
 	gl.BufferData(buffer_type, ffi.sizeof(data), data, GL.STATIC_DRAW)
 	return {
 		buffer_type = buffer_type,
@@ -168,20 +168,20 @@ local function send_uniform(shader, name, data, is_int)
 	-- it's either a vector or matrix type
 	-- TODO: Uniform arrays
 	if type(data) == "table" then
-		if type(data\[1\]) == "table" then
+		if type(data[1]) == "table" then
 			-- matrix
 			-- we support any matrix between 2x2 and 4x4 as long as it makes sense.
 			assert(#data >= 2 and #data <= 4, "Unsupported column size for matrix: " .. #data .. ", must be between 2 and 4.")
-			assert(#data\[1\] == #data\[2\] == #data\[3\] == #data\[4\], "All rows in a matrix must be the same size.")
-			assert(#data\[1\] >= 2 and #data\[1\] <= 4, "Unsupported row size for matrix: " .. #data\[1\] .. ", must be between 2 and 4.")
-			local mtype = #data == #data\[1\] and tostring(#data) or tostring(#data) .. "x" .. tostring(#data\[1\])
+			assert(#data[1] == #data[2] == #data[3] == #data[4], "All rows in a matrix must be the same size.")
+			assert(#data[1] >= 2 and #data[1] <= 4, "Unsupported row size for matrix: " .. #data[1] .. ", must be between 2 and 4.")
+			local mtype = #data == #data[1] and tostring(#data) or tostring(#data) .. "x" .. tostring(#data[1])
 			local fn = "UniformMatrix" .. mtype .. "fv"
-			gl\[fn\](loc, count, GL.FALSE, data)
+			gl[fn](loc, count, GL.FALSE, data)
 		else
 			-- vector
 			assert(#data >= 2 and #data <= 4, "Unsupported size for vector type: " .. #data .. ", must be between 2 and 4.")
 			local fn = "Uniform" .. tostring(#data) .. "fv"
-			gl\[fn\](loc, count, data)
+			gl[fn](loc, count, data)
 		end
 	end
 end
@@ -197,7 +197,7 @@ function graphics.push(which)
 			wireframe = graphics._wireframe
 		})
 	else
-		local top = stack\[#stack\]
+		local top = stack[#stack]
 		local new = {
 			matrix = top.matrix:clone(),
 			color  = top.color,
@@ -205,13 +205,13 @@ function graphics.push(which)
 			wireframe = top.wireframe
 		}
 		if which == "all" then
-			new.color = { top.color\[1\], top.color\[2\], top.color\[3\], top.color\[4\] }
+			new.color = { top.color[1], top.color[2], top.color[3], top.color[4] }
 			new.active_shader = { handle = top.active_shader.handle }
 			new.wireframe = { enable = top.wireframe.enable }
 		end
 		table.insert(stack, new)
 	end
-	graphics._state.stack_top = stack\[#stack\]
+	graphics._state.stack_top = stack[#stack]
 end
 
 function graphics.pop()
@@ -219,7 +219,7 @@ function graphics.pop()
 	assert(#stack > 1, "Stack underflow - you've popped more than you pushed!")
 	table.remove(stack)
 
-	local top = stack\[#stack\]
+	local top = stack[#stack]
 	graphics._state.stack_top = top
 	graphics.setShader(top.active_shader)
 	graphics.setColor(top.color)
@@ -251,42 +251,42 @@ function graphics.circle(mode, x, y, radius, segments)
 	segments = segments or 32
 	local vertices = {}
 	local count = (segments+2) * 2
-	local data = ffi.new("float\[?\]", count)
+	local data = ffi.new("float[?]", count)
 
 	-- center of fan
-	data\[0\] = x
-	data\[1\] = y
+	data[0] = x
+	data[1] = y
 
 	for i=0, segments do
 		local angle = (i / segments) * math.pi * 2
-		data\[(i*2)+2\] = x + math.cos(angle) * radius
-		data\[(i*2)+3\] = y + math.sin(angle) * radius
+		data[(i*2)+2] = x + math.cos(angle) * radius
+		data[(i*2)+3] = y + math.sin(angle) * radius
 	end
 
 	-- gl.PolygonMode(GL.FRONT_AND_BACK, GL.LINE)
 
 	local buf = submit_buffer(GL.ARRAY_BUFFER, GL.TRIANGLE_FAN, data, count)
-	local vao = ffi.new("GLuint\[1\]")
+	local vao = ffi.new("GLuint[1]")
 	assert(gl.GetError() == GL.NO_ERROR)
 	local shader = graphics._active_shader.handle
 	local modelview = graphics._state.stack_top.matrix
 	local w, h = graphics.getDimensions()
 	local projection = cpml.mat4():ortho(0, w, 0, h, -100, 100)
 	local mvp = modelview * projection
-	local mat_f  = ffi.new("float\[?\]", 16)
+	local mat_f  = ffi.new("float[?]", 16)
 	for i = 1, 16 do
-		mat_f\[i-1\] = modelview\[i\]
+		mat_f[i-1] = modelview[i]
 	end
 	gl.UniformMatrix4fv(gl.GetUniformLocation(shader, "HATE_ModelViewMatrix"), 1, false, mat_f)
 	for i = 1, 16 do
-		mat_f\[i-1\] = projection\[i\]
+		mat_f[i-1] = projection[i]
 	end
 	gl.UniformMatrix4fv(gl.GetUniformLocation(shader, "HATE_ProjectionMatrix"), 1, false, mat_f)
 	for i = 1, 16 do
-		mat_f\[i-1\] = mvp\[i\]
+		mat_f[i-1] = mvp[i]
 	end
 	gl.UniformMatrix4fv(gl.GetUniformLocation(shader, "HATE_ModelViewProjectionMatrix"), 1, false, mat_f)
-	gl.BindBuffer(buf.buffer_type, buf.handle\[0\])
+	gl.BindBuffer(buf.buffer_type, buf.handle[0])
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, GL.FLOAT, GL.FALSE, 0, ffi.cast("void*", 0))
 	gl.DrawArrays(buf.mode, 0, buf.count / 2)
@@ -317,7 +317,7 @@ end
 
 	local GLSL_VERSION = "#version 120"
 
-	local GLSL_SYNTAX = \[\[
+	local GLSL_SYNTAX = [[
 #define lowp
 #define mediump
 #define highp
@@ -325,9 +325,9 @@ end
 #define Image sampler2D
 #define extern uniform
 #define Texel texture2D
-#pragma optionNV(strict on)\]\]
+#pragma optionNV(strict on)]]
 
-	local GLSL_UNIFORMS = \[\[
+	local GLSL_UNIFORMS = [[
 #define TransformMatrix HATE_ModelViewMatrix
 #define ProjectionMatrix HATE_ProjectionMatrix
 #define TransformProjectionMatrix HATE_ModelViewProjectionMatrix
@@ -339,17 +339,17 @@ uniform mat4 HATE_ProjectionMatrix;
 uniform mat4 HATE_ModelViewProjectionMatrix;
 
 //uniform sampler2D _tex0_;
-//uniform vec4 love_ScreenSize;\]\]
+//uniform vec4 love_ScreenSize;]]
 
 	local GLSL_VERTEX = {
-		HEADER = \[\[
+		HEADER = [[
 #define VERTEX
 
 #define VertexPosition gl_Vertex
 #define VertexTexCoord gl_MultiTexCoord0
 #define VertexColor gl_Color
 
-#define VaryingTexCoord gl_TexCoord\[0\]
+#define VaryingTexCoord gl_TexCoord[0]
 #define VaryingColor gl_FrontColor
 
 // #if defined(GL_ARB_draw_instanced)
@@ -359,26 +359,26 @@ uniform mat4 HATE_ModelViewProjectionMatrix;
 //	attribute float love_PseudoInstanceID;
 //	int love_InstanceID = int(love_PseudoInstanceID);
 // #endif
-\]\],
+]],
 
-		FOOTER = \[\[
+		FOOTER = [[
 void main() {
 	VaryingTexCoord = VertexTexCoord;
 	VaryingColor = VertexColor;
 	gl_Position = position(TransformProjectionMatrix, VertexPosition);
-}\]\],
+}]],
 	}
 
 	local GLSL_PIXEL = {
-		HEADER = \[\[
+		HEADER = [[
 #define PIXEL
 
-#define VaryingTexCoord gl_TexCoord\[0\]
+#define VaryingTexCoord gl_TexCoord[0]
 #define VaryingColor gl_Color
 
-#define love_Canvases gl_FragData\]\],
+#define love_Canvases gl_FragData]],
 
-		FOOTER = \[\[
+		FOOTER = [[
 void main() {
 	// fix crashing issue in OSX when _tex0_ is unused within effect()
 	//float dummy = Texel(_tex0_, vec2(.5)).r;
@@ -389,9 +389,9 @@ void main() {
 
 	gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 	//gl_FragColor = effect(VaryingColor, _tex0_, VaryingTexCoord.st, pixelcoord);
-}\]\],
+}]],
 
-		FOOTER_MULTI_CANVAS = \[\[
+		FOOTER_MULTI_CANVAS = [[
 void main() {
 	// fix crashing issue in OSX when _tex0_ is unused within effect()
 	float dummy = Texel(_tex0_, vec2(.5)).r;
@@ -400,7 +400,7 @@ void main() {
 	vec2 pixelcoord = vec2(gl_FragCoord.x, (gl_FragCoord.y * love_ScreenSize.z) + love_ScreenSize.w);
 
 	effects(VaryingColor, _tex0_, VaryingTexCoord.st, pixelcoord);
-}\]\],
+}]],
 	}
 
 local table_concat = table.concat
@@ -491,12 +491,12 @@ function graphics.init()
 end
 
 return graphics
-]]):gsub('\\([%]%[])','%1')
-sources["hate.opengl"]=([[-- <pack hate.opengl> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.opengl"])sources["hate.opengl"]=([===[-- <pack hate.opengl> --
 local ffi = require("ffi")
 
 -- glcorearb.h
-local glheader = \[\[
+local glheader = [[
 /*
 ** Copyright (c) 2013-2014 The Khronos Group Inc.
 **
@@ -2606,7 +2606,7 @@ typedef void (APIENTRYP PFNGLTEXPAGECOMMITMENTARBPROC) (GLenum target, GLint lev
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR 0x93DB
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR 0x93DC
 #define GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR 0x93DD
-\]\]
+]]
 
 local openGL = {
 	GL = {},
@@ -2638,14 +2638,14 @@ local function constant_replace(name, value)
 	if (not num) then
 		if (value:match("ull$")) then
 			--Potentially reevaluate this for LuaJIT 2.1
-			GL\[name\] = loadstring("return " .. value)()
+			GL[name] = loadstring("return " .. value)()
 		elseif (value:match("u$")) then
 			value = value:gsub("u$", "")
 			num = tonumber(value)
 		end
 	end
 	
-	GL\[name\] = GL\[name\] or ctype(num)
+	GL[name] = GL[name] or ctype(num)
 	
 	return ""
 end
@@ -2670,9 +2670,9 @@ setmetatable(openGL.gl, gl_mt)
 -- SDL2 will do this when you call SDL_Init(SDL_INIT_VIDEO), for example.
 
 return openGL
-]]):gsub('\\([%]%[])','%1')
-sources["hate.window"]=([[-- <pack hate.window> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.window"])sources["hate.window"]=([===[-- <pack hate.window> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
 local window = {}
@@ -2680,10 +2680,10 @@ local window = {}
 -- TODO: EVERYTHING
 -- Note: you almost definitely want graphics.getDimensions, not this!
 function window.getDimensions()
-   local w, h = ffi.new("int\[1\]"), ffi.new("int\[1\]")
+   local w, h = ffi.new("int[1]"), ffi.new("int[1]")
    sdl.getWindowSize(window._state.window, w, h)
 
-   return tonumber(w\[0\]), tonumber(h\[0\])
+   return tonumber(w[0]), tonumber(h[0])
 end
 
 function window.getWidth()
@@ -2713,9 +2713,9 @@ function window.setFullscreen(fullscreen, fstype)
 end
 
 return window
-]]):gsub('\\([%]%[])','%1')
-sources["hate.system"]=([[-- <pack hate.system> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.system"])sources["hate.system"]=([===[-- <pack hate.system> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 local ffi = require "ffi"
 
@@ -2736,18 +2736,18 @@ function system.getOS()
 end
 
 function system.getPowerInfo()
-   local percent, seconds = ffi.new("int\[1\]"), ffi.new("int\[1\]")
+   local percent, seconds = ffi.new("int[1]"), ffi.new("int[1]")
    local state = sdl.getPowerInfo(percent, seconds)
    local states = {
-      \[tonumber(sdl.POWERSTATE_UNKNOWN)\] = "unknown",
-      \[tonumber(sdl.POWERSTATE_ON_BATTERY)\] = "battery",
-      \[tonumber(sdl.POWERSTATE_NO_BATTERY)\] = "nobattery",
-      \[tonumber(sdl.POWERSTATE_CHARGING)\] = "charging",
-      \[tonumber(sdl.POWERSTATE_CHARGED)\] = "charged"
+      [tonumber(sdl.POWERSTATE_UNKNOWN)] = "unknown",
+      [tonumber(sdl.POWERSTATE_ON_BATTERY)] = "battery",
+      [tonumber(sdl.POWERSTATE_NO_BATTERY)] = "nobattery",
+      [tonumber(sdl.POWERSTATE_CHARGING)] = "charging",
+      [tonumber(sdl.POWERSTATE_CHARGED)] = "charged"
    }
-   return states\[tonumber(state)\],
-          percent\[0\] >= 0 and percent\[0\] or nil,
-          seconds\[0\] >= 0 and seconds\[0\] or nil
+   return states[tonumber(state)],
+          percent[0] >= 0 and percent[0] or nil,
+          seconds[0] >= 0 and seconds[0] or nil
 end
 
 function system.getProcessorCount()
@@ -2757,30 +2757,30 @@ end
 function system.openURL(path)
    local osname = hate.system.getOS()
    local cmds = {
-      \["Windows"\] = "start \"\"",
-      \["OS X"\]    = "open",
-      \["Linux"\]   = "xdg-open"
+      ["Windows"] = "start \"\"",
+      ["OS X"]    = "open",
+      ["Linux"]   = "xdg-open"
    }
    if path:sub(1, 7) == "file://" then
-      cmds\["Windows"\] = "explorer"
+      cmds["Windows"] = "explorer"
       -- Windows-ify
       if osname == "Windows" then
          path = path:sub(8):gsub("/", "\\")
       end
    end
-   if not cmds\[osname\] then
+   if not cmds[osname] then
       print("What /are/ birds?")
       return
    end
-   local cmdstr = cmds\[osname\] .. " \"%s\""
+   local cmdstr = cmds[osname] .. " \"%s\""
    -- print(cmdstr, path)
    os.execute(cmdstr:format(path))
 end
 
 return system
-]]):gsub('\\([%]%[])','%1')
-sources["hate.filesystem"]=([[-- <pack hate.filesystem> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.filesystem"])sources["hate.filesystem"]=([===[-- <pack hate.filesystem> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 
 local ffi = require "ffi"
 local physfs = require(current_folder .. "physfs")
@@ -2846,11 +2846,11 @@ end
 function filesystem.getDirectoryItems(path, callback)
 	local files = {}
 	local list, i = physfs.enumerateFiles("/"), 0
-	while list\[i\] ~= nil do
+	while list[i] ~= nil do
 		if type(callback) == "function" then
-			callback(ffi.string(list\[i\]))
+			callback(ffi.string(list[i]))
 		else
-			table.insert(files, ffi.string(list\[i\]))
+			table.insert(files, ffi.string(list[i]))
 		end
 		i = i + 1
 	end
@@ -2886,7 +2886,7 @@ function filesystem.read(path, length)
 	assert(filesystem.exists(path), "The file \"" .. path .. "\") does not exist.")
 	local f = physfs.openRead(path)
 	local bytes = length or tonumber(physfs.fileLength(f))
-	local buf = ffi.new("unsigned char\[?\]", bytes)
+	local buf = ffi.new("unsigned char[?]", bytes)
 	local read = tonumber(physfs.read(f, buf, 1, bytes))
 
 	physfs.close(f)
@@ -2944,8 +2944,8 @@ function filesystem.isFused()
 end
 
 return filesystem
-]]):gsub('\\([%]%[])','%1')
-sources["hate.sdl2.defines"]=([[-- <pack hate.sdl2.defines> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.sdl2.defines"])sources["hate.sdl2.defines"]=([===[-- <pack hate.sdl2.defines> --
 -- Function definitions which were not output by
 -- the C preprocessor
 
@@ -3004,8 +3004,8 @@ local function registerdefines(sdl)
 end
 
 return registerdefines
-]]):gsub('\\([%]%[])','%1')
-sources["hate.sdl2.cdefs"]=([[-- <pack hate.sdl2.cdefs> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.sdl2.cdefs"])sources["hate.sdl2.cdefs"]=([===[-- <pack hate.sdl2.cdefs> --
 -- Cut and paste from the C preprocessor output
 -- Removed inline/defined functions which are not supported by luajit
 -- Instead, those are defined into defines.lua
@@ -3013,11 +3013,11 @@ sources["hate.sdl2.cdefs"]=([[-- <pack hate.sdl2.cdefs> --
 
 local ffi = require 'ffi'
 
-ffi.cdef\[\[
+ffi.cdef[[
 typedef struct _FILE FILE;
-\]\]
+]]
 
-ffi.cdef\[\[
+ffi.cdef[[
 
 const char * SDL_GetPlatform (void);
 typedef enum
@@ -3033,19 +3033,19 @@ typedef int32_t Sint32;
 typedef uint32_t Uint32;
 typedef int64_t Sint64;
 typedef uint64_t Uint64;
-typedef int SDL_dummy_uint8\[(sizeof(Uint8) == 1) * 2 - 1\];
-typedef int SDL_dummy_sint8\[(sizeof(Sint8) == 1) * 2 - 1\];
-typedef int SDL_dummy_uint16\[(sizeof(Uint16) == 2) * 2 - 1\];
-typedef int SDL_dummy_sint16\[(sizeof(Sint16) == 2) * 2 - 1\];
-typedef int SDL_dummy_uint32\[(sizeof(Uint32) == 4) * 2 - 1\];
-typedef int SDL_dummy_sint32\[(sizeof(Sint32) == 4) * 2 - 1\];
-typedef int SDL_dummy_uint64\[(sizeof(Uint64) == 8) * 2 - 1\];
-typedef int SDL_dummy_sint64\[(sizeof(Sint64) == 8) * 2 - 1\];
+typedef int SDL_dummy_uint8[(sizeof(Uint8) == 1) * 2 - 1];
+typedef int SDL_dummy_sint8[(sizeof(Sint8) == 1) * 2 - 1];
+typedef int SDL_dummy_uint16[(sizeof(Uint16) == 2) * 2 - 1];
+typedef int SDL_dummy_sint16[(sizeof(Sint16) == 2) * 2 - 1];
+typedef int SDL_dummy_uint32[(sizeof(Uint32) == 4) * 2 - 1];
+typedef int SDL_dummy_sint32[(sizeof(Sint32) == 4) * 2 - 1];
+typedef int SDL_dummy_uint64[(sizeof(Uint64) == 8) * 2 - 1];
+typedef int SDL_dummy_sint64[(sizeof(Sint64) == 8) * 2 - 1];
 typedef enum
 {
     DUMMY_ENUM_VALUE
 } SDL_DUMMY_ENUM;
-typedef int SDL_dummy_enum\[(sizeof(SDL_DUMMY_ENUM) == sizeof(int)) * 2 - 1\];
+typedef int SDL_dummy_enum[(sizeof(SDL_DUMMY_ENUM) == sizeof(int)) * 2 - 1];
 void * SDL_malloc(size_t size);
 void * SDL_calloc(size_t nmemb, size_t size);
 void * SDL_realloc(void *mem, size_t size);
@@ -3121,7 +3121,7 @@ char * SDL_iconv_string(const char *tocode,
                                                const char *fromcode,
                                                const char *inbuf,
                                                size_t inbytesleft);
-int SDL_main(int argc, char *argv\[\]);
+int SDL_main(int argc, char *argv[]);
 void SDL_SetMainReady(void);
 typedef enum
 {
@@ -3204,10 +3204,10 @@ typedef enum {
     SDL_THREAD_PRIORITY_HIGH
 } SDL_ThreadPriority;
 typedef int ( * SDL_ThreadFunction) (void *data);
-\]\]
+]]
 
 if jit.os == 'Windows' then
-  ffi.cdef\[\[
+  ffi.cdef[[
 
 typedef uintptr_t (*pfnSDL_CurrentBeginThread) (void *, unsigned,
 						unsigned (*func)(void*),
@@ -3232,15 +3232,15 @@ SDL_Thread *
 SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data,
                  pfnSDL_CurrentBeginThread pfnBeginThread,
                  pfnSDL_CurrentEndThread pfnEndThread);
-\]\]
+]]
 else
-  ffi.cdef\[\[
+  ffi.cdef[[
 SDL_Thread *
 SDL_CreateThread(SDL_ThreadFunction fn, const char *name, void *data);
-\]\]
+]]
 end
 
-ffi.cdef\[\[
+ffi.cdef[[
 const char * SDL_GetThreadName(SDL_Thread *thread);
 SDL_threadID SDL_ThreadID(void);
 SDL_threadID SDL_GetThreadID(SDL_Thread * thread);
@@ -3332,7 +3332,7 @@ typedef struct SDL_AudioCVT
     int len_cvt;
     int len_mult;
     double len_ratio;
-    SDL_AudioFilter filters\[10\];
+    SDL_AudioFilter filters[10];
     int filter_index;
 } __attribute__((packed)) SDL_AudioCVT;
 int SDL_GetNumAudioDrivers(void);
@@ -3557,7 +3557,7 @@ typedef struct SDL_PixelFormat
     SDL_Palette *palette;
     Uint8 BitsPerPixel;
     Uint8 BytesPerPixel;
-    Uint8 padding\[2\];
+    Uint8 padding[2];
     Uint32 Rmask;
     Uint32 Gmask;
     Uint32 Bmask;
@@ -4204,9 +4204,9 @@ enum
     SDLK_GREATER = '>',
     SDLK_QUESTION = '?',
     SDLK_AT = '@',
-    SDLK_LEFTBRACKET = '\[',
+    SDLK_LEFTBRACKET = '[',
     SDLK_BACKSLASH = '\\',
-    SDLK_RIGHTBRACKET = '\]',
+    SDLK_RIGHTBRACKET = ']',
     SDLK_CARET = '^',
     SDLK_UNDERSCORE = '_',
     SDLK_BACKQUOTE = '`',
@@ -4494,7 +4494,7 @@ int SDL_ShowCursor(int toggle);
 struct _SDL_Joystick;
 typedef struct _SDL_Joystick SDL_Joystick;
 typedef struct {
-    Uint8 data\[16\];
+    Uint8 data[16];
 } SDL_JoystickGUID;
 typedef Sint32 SDL_JoystickID;
 int SDL_NumJoysticks(void);
@@ -4697,7 +4697,7 @@ typedef struct SDL_TextEditingEvent
     Uint32 type;
     Uint32 timestamp;
     Uint32 windowID;
-    char text\[(32)\];
+    char text[(32)];
     Sint32 start;
     Sint32 length;
 } SDL_TextEditingEvent;
@@ -4706,7 +4706,7 @@ typedef struct SDL_TextInputEvent
     Uint32 type;
     Uint32 timestamp;
     Uint32 windowID;
-    char text\[(32)\];
+    char text[(32)];
 } SDL_TextInputEvent;
 typedef struct SDL_MouseMotionEvent
 {
@@ -4914,7 +4914,7 @@ typedef union SDL_Event
     SDL_MultiGestureEvent mgesture;
     SDL_DollarGestureEvent dgesture;
     SDL_DropEvent drop;
-    Uint8 padding\[56\];
+    Uint8 padding[56];
 } SDL_Event;
 void SDL_PumpEvents(void);
 typedef enum
@@ -4953,7 +4953,7 @@ typedef struct _SDL_Haptic SDL_Haptic;
 typedef struct SDL_HapticDirection
 {
     Uint8 type;
-    Sint32 dir\[3\];
+    Sint32 dir[3];
 } SDL_HapticDirection;
 typedef struct SDL_HapticConstant
 {
@@ -4994,12 +4994,12 @@ typedef struct SDL_HapticCondition
     Uint16 delay;
     Uint16 button;
     Uint16 interval;
-    Uint16 right_sat\[3\];
-    Uint16 left_sat\[3\];
-    Sint16 right_coeff\[3\];
-    Sint16 left_coeff\[3\];
-    Uint16 deadband\[3\];
-    Sint16 center\[3\];
+    Uint16 right_sat[3];
+    Uint16 left_sat[3];
+    Sint16 right_coeff[3];
+    Sint16 left_coeff[3];
+    Uint16 deadband[3];
+    Sint16 center[3];
 } SDL_HapticCondition;
 typedef struct SDL_HapticRamp
 {
@@ -5202,7 +5202,7 @@ typedef enum
 } SDL_MessageBoxColorType;
 typedef struct
 {
-    SDL_MessageBoxColor colors\[SDL_MESSAGEBOX_COLOR_MAX\];
+    SDL_MessageBoxColor colors[SDL_MESSAGEBOX_COLOR_MAX];
 } SDL_MessageBoxColorScheme;
 typedef struct
 {
@@ -5237,7 +5237,7 @@ typedef struct SDL_RendererInfo
     const char *name;
     Uint32 flags;
     Uint32 num_texture_formats;
-    Uint32 texture_formats\[16\];
+    Uint32 texture_formats[16];
     int max_texture_width;
     int max_texture_height;
 } SDL_RendererInfo;
@@ -5399,11 +5399,11 @@ void SDL_QuitSubSystem(Uint32 flags);
 Uint32 SDL_WasInit(Uint32 flags);
 void SDL_Quit(void);
 
-\]\]
+]]
 
 -- sdl
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_INIT_TIMER          = 0x00000001,
 SDL_INIT_AUDIO          = 0x00000010,
@@ -5418,10 +5418,10 @@ SDL_INIT_EVERYTHING     = ( \
                 SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER \
             )
 };
-\]\]
+]]
 -- audio
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_AUDIO_MASK_BITSIZE       = (0xFF),
 SDL_AUDIO_MASK_DATATYPE      = (1<<8),
@@ -5456,11 +5456,11 @@ SDL_AUDIO_ALLOW_ANY_CHANGE          = (SDL_AUDIO_ALLOW_FREQUENCY_CHANGE|SDL_AUDI
 SDL_MIX_MAXVOLUME = 128
 };
 
-\]\]
+]]
 
 -- events
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_RELEASED = 0,
 SDL_PRESSED  = 1,
@@ -5469,11 +5469,11 @@ SDL_IGNORE   = 0,
 SDL_DISABLE  = 0,
 SDL_ENABLE   = 1
 };
-\]\]
+]]
 
 -- haptic
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_HAPTIC_CONSTANT   = (1<<0),
 SDL_HAPTIC_SINE       = (1<<1),
@@ -5496,11 +5496,11 @@ SDL_HAPTIC_CARTESIAN  = 1,
 SDL_HAPTIC_SPHERICAL  = 2,
 SDL_HAPTIC_INFINITY   = 4294967295U
 };
-\]\]
+]]
 
 -- joystick
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_HAT_CENTERED    = 0x00,
 SDL_HAT_UP          = 0x01,
@@ -5512,11 +5512,11 @@ SDL_HAT_RIGHTDOWN   = (SDL_HAT_RIGHT|SDL_HAT_DOWN),
 SDL_HAT_LEFTUP      = (SDL_HAT_LEFT|SDL_HAT_UP),
 SDL_HAT_LEFTDOWN    = (SDL_HAT_LEFT|SDL_HAT_DOWN)
 };
-\]\]
+]]
 
 -- keycode
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_SCANCODE_MASK = (1<<30),
 SDL_KMOD_CTRL = (SDL_KMOD_LCTRL|SDL_KMOD_RCTRL),
@@ -5524,20 +5524,20 @@ SDL_KMOD_SHIFT = (SDL_KMOD_LSHIFT|SDL_KMOD_RSHIFT),
 SDL_KMOD_ALT = (SDL_KMOD_LALT|SDL_KMOD_RALT),
 SDL_KMOD_GUI = (SDL_KMOD_LGUI|SDL_KMOD_RGUI)
 };
-\]\]
+]]
 
 -- main
 if jit.os == 'Windows' then
-   ffi.cdef\[\[
+   ffi.cdef[[
 int SDL_RegisterApp(char *name, Uint32 style,
                     void *hInst);
 void SDL_UnregisterApp(void);
-   \]\]
+   ]]
 end
 
 -- mouse
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_BUTTON_LEFT     = 1,
 SDL_BUTTON_MIDDLE   = 2,
@@ -5550,28 +5550,28 @@ SDL_BUTTON_RMASK    = 1 << (SDL_BUTTON_RIGHT-1),
 SDL_BUTTON_X1MASK   = 1 << (SDL_BUTTON_X1-1),
 SDL_BUTTON_X2MASK   = 1 << (SDL_BUTTON_X2-1),
 };
-\]\]
+]]
 
 -- mutex
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_MUTEX_TIMEDOUT = 1,
 SDL_MUTEX_MAXWAIT = (~(Uint32)0)
 };
-\]\]
+]]
 
 -- pixels
 
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_ALPHA_OPAQUE = 255,
 SDL_ALPHA_TRANSPARENT = 0
 };
-\]\]
+]]
 
 -- rwops
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_RWOPS_UNKNOWN   = 0,
 SDL_RWOPS_WINFILE   = 1,
@@ -5580,55 +5580,55 @@ SDL_RWOPS_JNIFILE   = 3,
 SDL_RWOPS_MEMORY    = 4,
 SDL_RWOPS_MEMORY_RO = 5
 };
-\]\]
+]]
 
 -- shape
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_NONSHAPEABLE_WINDOW = -1,
 SDL_INVALID_SHAPE_ARGUMENT = -2,
 SDL_WINDOW_LACKS_SHAPE = -3
 };
-\]\]
+]]
 
 -- surface
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_SWSURFACE       = 0,
 SDL_PREALLOC        = 0x00000001,
 SDL_RLEACCEL        = 0x00000002,
 SDL_DONTFREE        = 0x00000004
 };
-\]\]
+]]
 
 -- video
-ffi.cdef\[\[
+ffi.cdef[[
 enum {
 SDL_WINDOWPOS_CENTERED_MASK  = 0x2FFF0000,
 SDL_WINDOWPOS_CENTERED = 0x2FFF0000,
 SDL_WINDOWPOS_UNDEFINED_MASK = 0x1FFF0000,
 SDL_WINDOWPOS_UNDEFINED = 0x1FFF0000
 };
-\]\]
-]]):gsub('\\([%]%[])','%1')
-sources["hate.sdl2.init"]=([[-- <pack hate.sdl2.init> --
+]]
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.sdl2.init"])sources["hate.sdl2.init"]=([===[-- <pack hate.sdl2.init> --
 -- Do not change this file manually
 -- Generated with dev/create-init.lua
 
 local ffi = require 'ffi'
 local C = ffi.load(ffi.os == "Windows" and 'bin/SDL2' or "SDL2")
 local sdl = {C=C}
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local registerdefines = require(current_folder .. "sdl2.defines")
 
 require(current_folder .. "sdl2.cdefs")
 
 local function register(luafuncname, funcname)
    local symexists, msg = pcall(function()
-                              local sym = C\[funcname\]
+                              local sym = C[funcname]
                            end)
    if symexists then
-      sdl\[luafuncname\] = C\[funcname\]
+      sdl[luafuncname] = C[funcname]
    end
 end
 
@@ -7106,9 +7106,9 @@ register('WINDOWPOS_UNDEFINED', 'SDL_WINDOWPOS_UNDEFINED')
 registerdefines(sdl)
 
 return sdl
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.intersect"]=([[-- <pack hate.cpml.modules.intersect> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.intersect"])sources["hate.cpml.modules.intersect"]=([===[-- <pack hate.cpml.modules.intersect> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 local constants = require(current_folder .. "constants")
 
@@ -7125,8 +7125,8 @@ function intersect.ray_triangle(ray, triangle)
 	local h, s, q = vec3(), vec3(), vec3()
 	local a, f, u, v
 
-	local e1 = triangle\[2\] - triangle\[1\]
-	local e2 = triangle\[3\] - triangle\[1\]
+	local e1 = triangle[2] - triangle[1]
+	local e2 = triangle[3] - triangle[1]
 
 	h = d:clone():cross(e2)
 
@@ -7137,7 +7137,7 @@ function intersect.ray_triangle(ray, triangle)
 	end
 
 	f = 1/a
-	s = p - triangle\[1\]
+	s = p - triangle[1]
 	u = f * (s:dot(h))
 
 	if u < 0 or u > 1 then
@@ -7209,9 +7209,9 @@ function intersect.circle_circle(c1, c2)
 end
 
 return intersect
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.vec3"]=([[-- <pack hate.cpml.modules.vec3> --
---\[\[
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.vec3"])sources["hate.cpml.modules.vec3"]=([===[-- <pack hate.cpml.modules.vec3> --
+--[[
 Copyright (c) 2010-2013 Matthias Richter
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7235,7 +7235,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-\]\]--
+]]--
 
 -- Modified to include 3D capabilities by Bill Shillito, April 2014
 -- Various bug fixes by Colby Klein, October 2014
@@ -7248,7 +7248,7 @@ vector.__index = vector
 
 local function new(x,y,z)
 	if type(x) == "table" then
-		return setmetatable({x = x.x or x\[1\] or 0, y = x.y or x\[2\] or 0, z = x.z or x\[3\] or 0}, vector)
+		return setmetatable({x = x.x or x[1] or 0, y = x.y or x[2] or 0, z = x.z or x[3] or 0}, vector)
 	end
 
 	return setmetatable({x = x or 0, y = y or 0, z = z or 0}, vector)
@@ -7450,8 +7450,8 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.constants"]=([[-- <pack hate.cpml.modules.constants> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.constants"])sources["hate.cpml.modules.constants"]=([===[-- <pack hate.cpml.modules.constants> --
 local constants = {}
 
 -- same as C's FLT_EPSILON
@@ -7461,8 +7461,8 @@ constants.FLT_EPSILON = 1.19209290e-07
 constants.DOT_THRESHOLD = 0.9995
 
 return constants
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.simplex"]=([[-- <pack hate.cpml.modules.simplex> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.simplex"])sources["hate.cpml.modules.simplex"]=([===[-- <pack hate.cpml.modules.simplex> --
 --
 -- Based on code in "Simplex noise demystified", by Stefan Gustavson
 -- www.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf
@@ -7488,7 +7488,7 @@ sources["hate.cpml.modules.simplex"]=([[-- <pack hate.cpml.modules.simplex> --
 -- TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 -- SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 --
--- \[ MIT license: http://www.opensource.org/licenses/mit-license.php \]
+-- [ MIT license: http://www.opensource.org/licenses/mit-license.php ]
 --
 
 -- Bail out with dummy module if FFI is missing.
@@ -7519,7 +7519,7 @@ local rshift = bit.rshift
 local M = {}
 
 -- Permutation of 0-255, replicated to allow easy indexing with sums of two bytes --
-local Perms = ffi.new("uint8_t\[512\]", {
+local Perms = ffi.new("uint8_t[512]", {
 	151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
 	140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148,
 	247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32,
@@ -7539,16 +7539,16 @@ local Perms = ffi.new("uint8_t\[512\]", {
 })
 
 -- The above, mod 12 for each element --
-local Perms12 = ffi.new("uint8_t\[512\]")
+local Perms12 = ffi.new("uint8_t[512]")
 
 for i = 0, 255 do
-	local x = Perms\[i\] % 12
+	local x = Perms[i] % 12
 
-	Perms\[i + 256\], Perms12\[i\], Perms12\[i + 256\] = Perms\[i\], x, x
+	Perms[i + 256], Perms12[i], Perms12[i + 256] = Perms[i], x, x
 end
 
 -- Gradients for 2D, 3D case --
-local Grads3 = ffi.new("const double\[12\]\[3\]",
+local Grads3 = ffi.new("const double[12][3]",
 	{ 1, 1, 0 }, { -1, 1, 0 }, { 1, -1, 0 }, { -1, -1, 0 },
 	{ 1, 0, 1 }, { -1, 0, 1 }, { 1, 0, -1 }, { -1, 0, -1 },
 	{ 0, 1, 1 }, { 0, -1, 1 }, { 0, 1, -1 }, { 0, -1, -1 }
@@ -7558,22 +7558,22 @@ do
 	-- 2D weight contribution
 	local function GetN (bx, by, x, y)
 		local t = .5 - x * x - y * y
-		local index = Perms12\[bx + Perms\[by\]\]
+		local index = Perms12[bx + Perms[by]]
 
-		return max(0, (t * t) * (t * t)) * (Grads3\[index\]\[0\] * x + Grads3\[index\]\[1\] * y)
+		return max(0, (t * t) * (t * t)) * (Grads3[index][0] * x + Grads3[index][1] * y)
 	end
 
 	---
 	-- @param x
 	-- @param y
-	-- @return Noise value in the range \[-1, +1\]
+	-- @return Noise value in the range [-1, +1]
 	function M.Simplex2D (x, y)
-		--\[\[
+		--[[
 			2D skew factors:
 			F = (math.sqrt(3) - 1) / 2
 			G = (3 - math.sqrt(3)) / 6
 			G2 = 2 * G - 1
-		\]\]
+		]]
 
 		-- Skew the input space to determine which simplex cell we are in.
 		local s = (x + y) * 0.366025403 -- F
@@ -7592,19 +7592,19 @@ do
 		local n0 = GetN(ix, iy, x0, y0)
 		local n2 = GetN(ix + 1, iy + 1, x0 - 0.577350270, y0 - 0.577350270) -- G2
 
-		--\[\[
+		--[[
 			Determine other corner based on simplex (equilateral triangle) we are in:
 			if x0 > y0 then
 				ix, x1 = ix + 1, x1 - 1
 			else
 				iy, y1 = iy + 1, y1 - 1
 			end
-		\]\]
+		]]
 		local xi = rshift(floor(y0 - x0), 31) -- y0 < x0
 		local n1 = GetN(ix + xi, iy + (1 - xi), x0 + 0.211324865 - xi, y0 - 0.788675135 + xi) -- x0 + G - xi, y0 + G - (1 - xi)
 
 		-- Add contributions from each corner to get the final noise value.
-		-- The result is scaled to return values in the interval \[-1,1\].
+		-- The result is scaled to return values in the interval [-1,1].
 		return 70.1480580019 * (n0 + n1 + n2)
 	end
 end
@@ -7613,24 +7613,24 @@ do
 	-- 3D weight contribution
 	local function GetN (ix, iy, iz, x, y, z)
 		local t = .6 - x * x - y * y - z * z
-		local index = Perms12\[ix + Perms\[iy + Perms\[iz\]\]\]
+		local index = Perms12[ix + Perms[iy + Perms[iz]]]
 
-		return max(0, (t * t) * (t * t)) * (Grads3\[index\]\[0\] * x + Grads3\[index\]\[1\] * y + Grads3\[index\]\[2\] * z)
+		return max(0, (t * t) * (t * t)) * (Grads3[index][0] * x + Grads3[index][1] * y + Grads3[index][2] * z)
 	end
 
 	---
 	-- @param x
 	-- @param y
 	-- @param z
-	-- @return Noise value in the range \[-1, +1\]
+	-- @return Noise value in the range [-1, +1]
 	function M.Simplex3D (x, y, z)
-		--\[\[
+		--[[
 			3D skew factors:
 			F = 1 / 3
 			G = 1 / 6
 			G2 = 2 * G
 			G3 = 3 * G - 1
-		\]\]
+		]]
 
 		-- Skew the input space to determine which simplex cell we are in.
 		local s = (x + y + z) * 0.333333333 -- F
@@ -7651,7 +7651,7 @@ do
 		local n0 = GetN(ix, iy, iz, x0, y0, z0)
 		local n3 = GetN(ix + 1, iy + 1, iz + 1, x0 - 0.5, y0 - 0.5, z0 - 0.5) -- G3
 
-		--\[\[
+		--[[
 			Determine other corners based on simplex (skewed tetrahedron) we are in:
 
 			if x0 >= y0 then -- ~A
@@ -7671,7 +7671,7 @@ do
 					i1, j1, k1, i2, j2, k2 = 0, 1, 0, 1, 1, 0
 				end
 			end
-		\]\]
+		]]
 
 		local xLy = rshift(floor(x0 - y0), 31) -- x0 < y0
 		local yLz = rshift(floor(y0 - z0), 31) -- y0 < z0
@@ -7689,14 +7689,14 @@ do
 		local n2 = GetN(ix + i2, iy + j2, iz + k2, x0 + 0.333333333 - i2, y0 + 0.333333333 - j2, z0 + 0.333333333 - k2) -- G2
 
 		-- Add contributions from each corner to get the final noise value.
-		-- The result is scaled to stay just inside \[-1,1\]
+		-- The result is scaled to stay just inside [-1,1]
 		return 28.452842 * (n0 + n1 + n2 + n3)
 	end
 end
 
 do
 	-- Gradients for 4D case --
-	local Grads4 = ffi.new("const double\[32\]\[4\]",
+	local Grads4 = ffi.new("const double[32][4]",
 		{ 0, 1, 1, 1 }, { 0, 1, 1, -1 }, { 0, 1, -1, 1 }, { 0, 1, -1, -1 },
 		{ 0, -1, 1, 1 }, { 0, -1, 1, -1 }, { 0, -1, -1, 1 }, { 0, -1, -1, -1 },
 		{ 1, 0, 1, 1 }, { 1, 0, 1, -1 }, { 1, 0, -1, 1 }, { 1, 0, -1, -1 },
@@ -7710,14 +7710,14 @@ do
 	-- 4D weight contribution
 	local function GetN (ix, iy, iz, iw, x, y, z, w)
 		local t = .6 - x * x - y * y - z * z - w * w
-		local index = band(Perms\[ix + Perms\[iy + Perms\[iz + Perms\[iw\]\]\]\], 0x1F)
+		local index = band(Perms[ix + Perms[iy + Perms[iz + Perms[iw]]]], 0x1F)
 
-		return max(0, (t * t) * (t * t)) * (Grads4\[index\]\[0\] * x + Grads4\[index\]\[1\] * y + Grads4\[index\]\[2\] * z + Grads4\[index\]\[3\] * w)
+		return max(0, (t * t) * (t * t)) * (Grads4[index][0] * x + Grads4[index][1] * y + Grads4[index][2] * z + Grads4[index][3] * w)
 	end
 
 	-- A lookup table to traverse the simplex around a given point in 4D.
 	-- Details can be found where this table is used, in the 4D noise method.
-	local Simplex = ffi.new("uint8_t\[64\]\[4\]",
+	local Simplex = ffi.new("uint8_t[64][4]",
 		{ 0, 1, 2, 3 }, { 0, 1, 3, 2 }, {}, { 0, 2, 3, 1 }, {}, {}, {}, { 1, 2, 3 },
 		{ 0, 2, 1, 3 }, {}, { 0, 3, 1, 2 }, { 0, 3, 2, 1 }, {}, {}, {}, { 1, 3, 2 },
 		{}, {}, {}, {}, {}, {}, {}, {},
@@ -7730,10 +7730,10 @@ do
 
 	-- Convert the above indices to masks that can be shifted / anded into offsets --
 	for i = 0, 63 do
-		Simplex\[i\]\[0\] = lshift(1, Simplex\[i\]\[0\]) - 1
-		Simplex\[i\]\[1\] = lshift(1, Simplex\[i\]\[1\]) - 1
-		Simplex\[i\]\[2\] = lshift(1, Simplex\[i\]\[2\]) - 1
-		Simplex\[i\]\[3\] = lshift(1, Simplex\[i\]\[3\]) - 1
+		Simplex[i][0] = lshift(1, Simplex[i][0]) - 1
+		Simplex[i][1] = lshift(1, Simplex[i][1]) - 1
+		Simplex[i][2] = lshift(1, Simplex[i][2]) - 1
+		Simplex[i][3] = lshift(1, Simplex[i][3]) - 1
 	end
 
 	---
@@ -7741,16 +7741,16 @@ do
 	-- @param y
 	-- @param z
 	-- @param w
-	-- @return Noise value in the range \[-1, +1\]
+	-- @return Noise value in the range [-1, +1]
 	function M.Simplex4D (x, y, z, w)
-		--\[\[
+		--[[
 			4D skew factors:
 			F = (math.sqrt(5) - 1) / 4 
 			G = (5 - math.sqrt(5)) / 20
 			G2 = 2 * G
 			G3 = 3 * G
 			G4 = 4 * G - 1
-		\]\]
+		]]
 
 		-- Skew the input space to determine which simplex cell we are in.
 		local s = (x + y + z + w) * 0.309016994 -- F
@@ -7778,32 +7778,32 @@ do
 		local c5 = band(rshift(floor(w0 - y0), 30), 2)
 		local c6 = rshift(floor(w0 - z0), 31)
 
-		-- Simplex\[c\] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
+		-- Simplex[c] is a 4-vector with the numbers 0, 1, 2 and 3 in some order.
 		-- Many values of c will never occur, since e.g. x>y>z>w makes x<z, y<w and x<w
 		-- impossible. Only the 24 indices which have non-zero entries make any sense.
 		-- We use a thresholding to set the coordinates in turn from the largest magnitude.
 		local c = c1 + c2 + c3 + c4 + c5 + c6
 
 		-- The number 3 (i.e. bit 2) in the "simplex" array is at the position of the largest coordinate.
-		local i1 = rshift(Simplex\[c\]\[0\], 2)
-		local j1 = rshift(Simplex\[c\]\[1\], 2)
-		local k1 = rshift(Simplex\[c\]\[2\], 2)
-		local l1 = rshift(Simplex\[c\]\[3\], 2)
+		local i1 = rshift(Simplex[c][0], 2)
+		local j1 = rshift(Simplex[c][1], 2)
+		local k1 = rshift(Simplex[c][2], 2)
+		local l1 = rshift(Simplex[c][3], 2)
 
 		-- The number 2 (i.e. bit 1) in the "simplex" array is at the second largest coordinate.
-		local i2 = band(rshift(Simplex\[c\]\[0\], 1), 1)
-		local j2 = band(rshift(Simplex\[c\]\[1\], 1), 1)
-		local k2 = band(rshift(Simplex\[c\]\[2\], 1), 1)
-		local l2 = band(rshift(Simplex\[c\]\[3\], 1), 1)
+		local i2 = band(rshift(Simplex[c][0], 1), 1)
+		local j2 = band(rshift(Simplex[c][1], 1), 1)
+		local k2 = band(rshift(Simplex[c][2], 1), 1)
+		local l2 = band(rshift(Simplex[c][3], 1), 1)
 
 		-- The number 1 (i.e. bit 0) in the "simplex" array is at the second smallest coordinate.
-		local i3 = band(Simplex\[c\]\[0\], 1)
-		local j3 = band(Simplex\[c\]\[1\], 1)
-		local k3 = band(Simplex\[c\]\[2\], 1)
-		local l3 = band(Simplex\[c\]\[3\], 1)
+		local i3 = band(Simplex[c][0], 1)
+		local j3 = band(Simplex[c][1], 1)
+		local k3 = band(Simplex[c][2], 1)
+		local l3 = band(Simplex[c][3], 1)
 
 		-- Work out the hashed gradient indices of the five simplex corners
-		-- Sum up and scale the result to cover the range \[-1,1\]
+		-- Sum up and scale the result to cover the range [-1,1]
 		ix, iy, iz, iw = band(ix, 255), band(iy, 255), band(iz, 255), band(iw, 255)
 
 		local n0 = GetN(ix, iy, iz, iw, x0, y0, z0, w0)
@@ -7818,50 +7818,50 @@ end
 
 -- Export the module.
 return M
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.quat"]=([[-- <pack hate.cpml.modules.quat> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.quat"])sources["hate.cpml.modules.quat"]=([===[-- <pack hate.cpml.modules.quat> --
 -- quaternions
 -- Author: Andrew Stacey
 -- Website: http://www.math.ntnu.no/~stacey/HowDidIDoThat/iPad/Codea.html
 -- Licence: CC0 http://wiki.creativecommons.org/CC0
 
---\[\[
+--[[
 This is a class for handling quaternion numbers.  It was originally
 designed as a way of encoding rotations of 3 dimensional space.
---\]\]
+--]]
 
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local constants      = require(current_folder .. "constants")
 local vec3           = require(current_folder .. "vec3")
 local quaternion     = {}
 quaternion.__index   = quaternion
 
---\[\[
+--[[
 A quaternion can either be specified by giving the four coordinates as
 real numbers or by giving the scalar part and the vector part.
---\]\]
+--]]
 
 local function new(...)
 	local x, y, z, w
 	-- copy
 	local arg = {...}
-	if #arg == 1 and type(arg\[1\]) == "table" then
-		x = arg\[1\].x
-		y = arg\[1\].y
-		z = arg\[1\].z
-		w = arg\[1\].w
+	if #arg == 1 and type(arg[1]) == "table" then
+		x = arg[1].x
+		y = arg[1].y
+		z = arg[1].z
+		w = arg[1].w
 	-- four numbers
 	elseif #arg == 4 then
-		x = arg\[1\]
-		y = arg\[2\]
-		z = arg\[3\]
-		w = arg\[4\]
+		x = arg[1]
+		y = arg[2]
+		z = arg[3]
+		w = arg[4]
 	-- real number plus vector
 	elseif #arg == 2 then
-		x = arg\[1\].x or arg\[1\]\[1\]
-		y = arg\[1\].y or arg\[1\]\[2\]
-		z = arg\[1\].z or arg\[1\]\[3\]
-		w = arg\[2\]
+		x = arg[1].x or arg[1][1]
+		y = arg[1].y or arg[1][2]
+		z = arg[1].z or arg[1][3]
+		w = arg[2]
 	else
 		error("Incorrect number of arguments to quaternion")
 	end
@@ -8035,10 +8035,10 @@ function quaternion:to_vec3()
 	return vec3(self.x, self.y, self.z)
 end
 
---\[\[
+--[[
 Converts a rotation to a quaternion. The first argument is the angle
 to rotate, the second must specify an axis as a Vec3 object.
---\]\]
+--]]
 
 function quaternion:rotate(a,axis)
 	local q,c,s
@@ -8118,9 +8118,9 @@ end
 -- the module
 return setmetatable({ new = new },
 { __call = function(_, ...) return new(...) end })
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.color"]=([[-- <pack hate.cpml.modules.color> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.color"])sources["hate.cpml.modules.color"]=([===[-- <pack hate.cpml.modules.color> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local utils = require(current_folder .. "utils")
 local color = {}
 local function new(r, g, b, a)
@@ -8130,33 +8130,33 @@ color.__index = color
 color.__call = function(_, ...) return new(...) end
 
 function color.invert(c)
-	return new(255 - c\[1\], 255 - c\[2\], 255 - c\[3\], c\[4\])
+	return new(255 - c[1], 255 - c[2], 255 - c[3], c[4])
 end
 
 function color.lighten(c, v)
 	return new(
-		utils.clamp(c\[1\] + v * 255, 0, 255),
-		utils.clamp(c\[2\] + v * 255, 0, 255),
-		utils.clamp(c\[3\] + v * 255, 0, 255),
-		c\[4\]
+		utils.clamp(c[1] + v * 255, 0, 255),
+		utils.clamp(c[2] + v * 255, 0, 255),
+		utils.clamp(c[3] + v * 255, 0, 255),
+		c[4]
 	)
 end
 
 function color.darken(c, v)
 	return new(
-		utils.clamp(c\[1\] - v * 255, 0, 255),
-		utils.clamp(c\[2\] - v * 255, 0, 255),
-		utils.clamp(c\[3\] - v * 255, 0, 255),
-		c\[4\]
+		utils.clamp(c[1] - v * 255, 0, 255),
+		utils.clamp(c[2] - v * 255, 0, 255),
+		utils.clamp(c[3] - v * 255, 0, 255),
+		c[4]
 	)
 end
 
 function color.mul(c, v)
 	local t = {}
 	for i=1,3 do
-		t\[i\] = c\[i\] * v
+		t[i] = c[i] * v
 	end
-	t\[4\] = c\[4\]
+	t[4] = c[4]
 	setmetatable(t, color)
 	return t
 end
@@ -8165,9 +8165,9 @@ end
 function color.alpha(c, v)
 	local t = {}
 	for i=1,3 do
-		t\[i\] = c\[i\]
+		t[i] = c[i]
 	end
-	t\[4\] = v * 255
+	t[4] = v * 255
 	setmetatable(t, color)
 	return t
 end
@@ -8175,9 +8175,9 @@ end
 function color.opacity(c, v)
 	local t = {}
 	for i=1,3 do
-		t\[i\] = c\[i\]
+		t[i] = c[i]
 	end
-	t\[4\] = c\[4\] * v
+	t[4] = c[4] * v
 	setmetatable(t, color)
 	return t
 end
@@ -8192,15 +8192,15 @@ local function hsv_to_color(hsv)
 	local f, q, p, t
 	local r, g, b
 	local h, s, v
-	local a = hsv\[4\] or 255
-	s = hsv\[2\]
-	v = hsv\[3\]
+	local a = hsv[4] or 255
+	s = hsv[2]
+	v = hsv[3]
 
 	if s == 0 then
 		return new(v, v, v, a)
 	end
 
-	h = hsv\[1\] / 60
+	h = hsv[1] / 60
 
 	i = math.floor(h)
 	f = h - i
@@ -8228,10 +8228,10 @@ end
 -- color_to_hsv(c)
 -- Takes in a normal color and returns a table with the HSV values.
 local function color_to_hsv(c)
-	local r = c\[1\]
-	local g = c\[2\]
-	local b = c\[3\]
-	local a = c\[4\] or 255
+	local r = c[1]
+	local g = c[2]
+	local b = c[3]
+	local a = c[4] or 255
 
 	local h = 0
 	local s = 0
@@ -8276,19 +8276,19 @@ end
 
 function color.hue(color, newHue)
 	local c = color_to_hsv(color)
-	c\[1\] = (newHue + 360) % 360
+	c[1] = (newHue + 360) % 360
 	return hsv_to_color(c)
 end
 
 function color.saturation(color, percent)
 	local c = color_to_hsv(color)
-	c\[2\] = utils.clamp(percent, 0, 1)
+	c[2] = utils.clamp(percent, 0, 1)
 	return hsv_to_color(c)
 end
 
 function color.value(color, percent)
 	local c = color_to_hsv(color)
-	c\[3\] = utils.clamp(percent, 0, 1)
+	c[3] = utils.clamp(percent, 0, 1)
 	return hsv_to_color(c)
 end
 
@@ -8308,9 +8308,9 @@ function color.gamma_to_linear(r, g, b, a)
 	if type(r) == "table" then
 		local c = {}
 		for i=1,3 do
-			c\[i\] = convert(r\[i\] / 255) * 255
+			c[i] = convert(r[i] / 255) * 255
 		end
-		c\[4\] = convert(r\[4\] / 255) * 255
+		c[4] = convert(r[4] / 255) * 255
 		return c
 	else
 		return convert(r / 255) * 255, convert(g / 255) * 255, convert(b / 255) * 255, a or 255
@@ -8333,9 +8333,9 @@ function color.linear_to_gamma(r, g, b, a)
 	if type(r) == "table" then
 		local c = {}
 		for i=1,3 do
-			c\[i\] = convert(r\[i\] / 255) * 255
+			c[i] = convert(r[i] / 255) * 255
 		end
-		c\[4\] = convert(r\[4\] / 255) * 255
+		c[4] = convert(r[4] / 255) * 255
 		return c
 	else
 		return convert(r / 255) * 255, convert(g / 255) * 255, convert(b / 255) * 255, a or 255
@@ -8343,12 +8343,12 @@ function color.linear_to_gamma(r, g, b, a)
 end
 
 return setmetatable({new = new}, color)
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.mat4"]=([[-- <pack hate.cpml.modules.mat4> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.mat4"])sources["hate.cpml.modules.mat4"]=([===[-- <pack hate.cpml.modules.mat4> --
 -- double 4x4, 1-based, column major
 -- local matrix = {}
 
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local constants = require(current_folder .. "constants")
 local vec3 = require(current_folder .. "vec3")
 
@@ -8358,17 +8358,17 @@ setmetatable(mat4, mat4)
 
 -- from https://github.com/davidm/lua-matrix/blob/master/lua/matrix.lua
 -- Multiply two matrices; m1 columns must be equal to m2 rows
--- e.g. #m1\[1\] == #m2
+-- e.g. #m1[1] == #m2
 local function matrix_mult_nxn(m1, m2)
 	local mtx = {}
 	for i = 1, #m1 do
-		mtx\[i\] = {}
-		for j = 1, #m2\[1\] do
-			local num = m1\[i\]\[1\] * m2\[1\]\[j\]
-			for n = 2, #m1\[1\] do
-				num = num + m1\[i\]\[n\] * m2\[n\]\[j\]
+		mtx[i] = {}
+		for j = 1, #m2[1] do
+			local num = m1[i][1] * m2[1][j]
+			for n = 2, #m1[1] do
+				num = num + m1[i][n] * m2[n][j]
 			end
-			mtx\[i\]\[j\] = num
+			mtx[i][j] = num
 		end
 	end
 	return mtx
@@ -8383,18 +8383,18 @@ function mat4:__call(v)
 	}
 	if type(v) == "table" and #v == 16 then
 		for i=1,16 do
-			m\[i\] = v\[i\]
+			m[i] = v[i]
 		end
 	elseif type(v) == "table" and #v == 9 then
-		m\[1\], m\[2\], m\[3\] = v\[1\], v\[2\], v\[3\]
-		m\[5\], m\[6\], m\[7\] = v\[4\], v\[5\], v\[6\]
-		m\[9\], m\[10\], m\[11\] = v\[7\], v\[8\], v\[9\]
-		m\[16\] = 1
-	elseif type(v) == "table" and type(v\[1\]) == "table" then
+		m[1], m[2], m[3] = v[1], v[2], v[3]
+		m[5], m[6], m[7] = v[4], v[5], v[6]
+		m[9], m[10], m[11] = v[7], v[8], v[9]
+		m[16] = 1
+	elseif type(v) == "table" and type(v[1]) == "table" then
 		local idx = 1
 		for i=1, 4 do
 			for j=1, 4 do
-				m\[idx\] = v\[i\]\[j\]
+				m[idx] = v[i][j]
 				idx = idx + 1
 			end
 		end
@@ -8409,7 +8409,7 @@ end
 function mat4:__eq(b)
 	local abs = math.abs
 	for i=1, 16 do
-		if abs(self\[i\] - b\[i\]) > constants.FLT_EPSILON then
+		if abs(self[i] - b[i]) > constants.FLT_EPSILON then
 			return false
 		end
 	end
@@ -8417,26 +8417,26 @@ function mat4:__eq(b)
 end
 
 function mat4:__tostring()
-	local str = "\[ "
+	local str = "[ "
 	for i, v in ipairs(self) do
 		str = str .. string.format("%2.5f", v)
 		if i < #self then
 			str = str .. ", "
 		end
 	end
-	str = str .. " \]"
+	str = str .. " ]"
 	return str
 end
 
 function mat4:ortho(left, right, top, bottom, near, far)
 	local out = mat4()
-	out\[1\] = 2 / (right - left)
-	out\[6\] = 2 / (top - bottom)
-	out\[11\] = -2 / (far - near)
-	out\[13\] = -((right + left) / (right - left))
-	out\[14\] = -((top + bottom) / (top - bottom))
-	out\[15\] = -((far + near) / (far - near))
-	out\[16\] = 1
+	out[1] = 2 / (right - left)
+	out[6] = 2 / (top - bottom)
+	out[11] = -2 / (far - near)
+	out[13] = -((right + left) / (right - left))
+	out[14] = -((top + bottom) / (top - bottom))
+	out[15] = -((far + near) / (far - near))
+	out[16] = 1
 	return out
 end
 
@@ -8452,11 +8452,11 @@ function mat4:perspective(fovy, aspect, near, far)
 		0, 0, 0, 0
 	)
 
-	result\[1\] = 1 / (aspect * t)
-	result\[6\] = 1 / t
-	result\[11\] = - (far + near) / (far - near)
-	result\[12\] = - 1
-	result\[15\] = - (2 * far * near) / (far - near)
+	result[1] = 1 / (aspect * t)
+	result[6] = 1 / t
+	result[11] = - (far + near) / (far - near)
+	result[12] = - 1
+	result[15] = - (2 * far * near) / (far - near)
 
 	return result
 end
@@ -8482,7 +8482,7 @@ function mat4:scale(s)
 end
 
 local function len(v)
-	return math.sqrt(v\[1\] * v\[1\] + v\[2\] * v\[2\] + v\[3\] * v\[3\])
+	return math.sqrt(v[1] * v[1] + v[2] * v[2] + v[3] * v[3])
 end
 
 function mat4:rotate(angle, axis)
@@ -8493,7 +8493,7 @@ function mat4:rotate(angle, axis)
 	if l == 0 then
 		return self
 	end
-	local x, y, z = axis\[1\] / l, axis\[2\] / l, axis\[3\] / l
+	local x, y, z = axis[1] / l, axis[2] / l, axis[3] / l
 	local c = math.cos(angle)
 	local s = math.sin(angle)
 	local m = {
@@ -8509,7 +8509,7 @@ end
 function mat4:identity()
 	local out = mat4()
 	for i=1, 16, 5 do
-		out\[i\] = 1
+		out[i] = 1
 	end
 	return out
 end
@@ -8522,126 +8522,126 @@ end
 function mat4:invert()
 	local out = mat4()
 
-	out\[1\] =  self\[6\]  * self\[11\] * self\[16\] -
-		self\[6\]  * self\[12\] * self\[15\] -
-		self\[10\] * self\[7\]  * self\[16\] +
-		self\[10\] * self\[8\]  * self\[15\] +
-		self\[14\] * self\[7\]  * self\[12\] -
-		self\[14\] * self\[8\]  * self\[11\]
+	out[1] =  self[6]  * self[11] * self[16] -
+		self[6]  * self[12] * self[15] -
+		self[10] * self[7]  * self[16] +
+		self[10] * self[8]  * self[15] +
+		self[14] * self[7]  * self[12] -
+		self[14] * self[8]  * self[11]
 
-	out\[5\] = -self\[5\]  * self\[11\] * self\[16\] +
-		self\[5\]  * self\[12\] * self\[15\] +
-		self\[9\]  * self\[7\]  * self\[16\] -
-		self\[9\]  * self\[8\]  * self\[15\] -
-		self\[13\] * self\[7\]  * self\[12\] +
-		self\[13\] * self\[8\]  * self\[11\]
+	out[5] = -self[5]  * self[11] * self[16] +
+		self[5]  * self[12] * self[15] +
+		self[9]  * self[7]  * self[16] -
+		self[9]  * self[8]  * self[15] -
+		self[13] * self[7]  * self[12] +
+		self[13] * self[8]  * self[11]
 
-	out\[9\] =  self\[5\]  * self\[10\] * self\[16\] -
-		self\[5\]  * self\[12\] * self\[14\] -
-		self\[9\]  * self\[6\]  * self\[16\] +
-		self\[9\]  * self\[8\]  * self\[14\] +
-		self\[13\] * self\[6\]  * self\[12\] -
-		self\[13\] * self\[8\]  * self\[10\]
+	out[9] =  self[5]  * self[10] * self[16] -
+		self[5]  * self[12] * self[14] -
+		self[9]  * self[6]  * self[16] +
+		self[9]  * self[8]  * self[14] +
+		self[13] * self[6]  * self[12] -
+		self[13] * self[8]  * self[10]
 
-	out\[13\] = -self\[5\]  * self\[10\] * self\[15\] +
-		self\[5\]  * self\[11\] * self\[14\] +
-		self\[9\]  * self\[6\]  * self\[15\] -
-		self\[9\]  * self\[7\]  * self\[14\] -
-		self\[13\] * self\[6\]  * self\[11\] +
-		self\[13\] * self\[7\]  * self\[10\]
+	out[13] = -self[5]  * self[10] * self[15] +
+		self[5]  * self[11] * self[14] +
+		self[9]  * self[6]  * self[15] -
+		self[9]  * self[7]  * self[14] -
+		self[13] * self[6]  * self[11] +
+		self[13] * self[7]  * self[10]
 
-	out\[2\] = -self\[2\]  * self\[11\] * self\[16\] +
-		self\[2\]  * self\[12\] * self\[15\] +
-		self\[10\] * self\[3\]  * self\[16\] -
-		self\[10\] * self\[4\]  * self\[15\] -
-		self\[14\] * self\[3\]  * self\[12\] +
-		self\[14\] * self\[4\]  * self\[11\]
+	out[2] = -self[2]  * self[11] * self[16] +
+		self[2]  * self[12] * self[15] +
+		self[10] * self[3]  * self[16] -
+		self[10] * self[4]  * self[15] -
+		self[14] * self[3]  * self[12] +
+		self[14] * self[4]  * self[11]
 
-	out\[6\] =  self\[1\]  * self\[11\] * self\[16\] -
-		self\[1\]  * self\[12\] * self\[15\] -
-		self\[9\]  * self\[3\] * self\[16\] +
-		self\[9\]  * self\[4\] * self\[15\] +
-		self\[13\] * self\[3\] * self\[12\] -
-		self\[13\] * self\[4\] * self\[11\]
+	out[6] =  self[1]  * self[11] * self[16] -
+		self[1]  * self[12] * self[15] -
+		self[9]  * self[3] * self[16] +
+		self[9]  * self[4] * self[15] +
+		self[13] * self[3] * self[12] -
+		self[13] * self[4] * self[11]
 
-	out\[10\] = -self\[1\]  * self\[10\] * self\[16\] +
-		self\[1\]  * self\[12\] * self\[14\] +
-		self\[9\]  * self\[2\]  * self\[16\] -
-		self\[9\]  * self\[4\]  * self\[14\] -
-		self\[13\] * self\[2\]  * self\[12\] +
-		self\[13\] * self\[4\]  * self\[10\]
+	out[10] = -self[1]  * self[10] * self[16] +
+		self[1]  * self[12] * self[14] +
+		self[9]  * self[2]  * self[16] -
+		self[9]  * self[4]  * self[14] -
+		self[13] * self[2]  * self[12] +
+		self[13] * self[4]  * self[10]
 
-	out\[14\] = self\[1\]  * self\[10\] * self\[15\] -
-		self\[1\]  * self\[11\] * self\[14\] -
-		self\[9\]  * self\[2\] * self\[15\] +
-		self\[9\]  * self\[3\] * self\[14\] +
-		self\[13\] * self\[2\] * self\[11\] -
-		self\[13\] * self\[3\] * self\[10\]
+	out[14] = self[1]  * self[10] * self[15] -
+		self[1]  * self[11] * self[14] -
+		self[9]  * self[2] * self[15] +
+		self[9]  * self[3] * self[14] +
+		self[13] * self[2] * self[11] -
+		self[13] * self[3] * self[10]
 
-	out\[3\] = self\[2\]  * self\[7\] * self\[16\] -
-		self\[2\]  * self\[8\] * self\[15\] -
-		self\[6\]  * self\[3\] * self\[16\] +
-		self\[6\]  * self\[4\] * self\[15\] +
-		self\[14\] * self\[3\] * self\[8\] -
-		self\[14\] * self\[4\] * self\[7\]
+	out[3] = self[2]  * self[7] * self[16] -
+		self[2]  * self[8] * self[15] -
+		self[6]  * self[3] * self[16] +
+		self[6]  * self[4] * self[15] +
+		self[14] * self[3] * self[8] -
+		self[14] * self[4] * self[7]
 
-	out\[7\] = -self\[1\]  * self\[7\] * self\[16\] +
-		self\[1\]  * self\[8\] * self\[15\] +
-		self\[5\]  * self\[3\] * self\[16\] -
-		self\[5\]  * self\[4\] * self\[15\] -
-		self\[13\] * self\[3\] * self\[8\] +
-		self\[13\] * self\[4\] * self\[7\]
+	out[7] = -self[1]  * self[7] * self[16] +
+		self[1]  * self[8] * self[15] +
+		self[5]  * self[3] * self[16] -
+		self[5]  * self[4] * self[15] -
+		self[13] * self[3] * self[8] +
+		self[13] * self[4] * self[7]
 
-	out\[11\] = self\[1\]  * self\[6\] * self\[16\] -
-		self\[1\]  * self\[8\] * self\[14\] -
-		self\[5\]  * self\[2\] * self\[16\] +
-		self\[5\]  * self\[4\] * self\[14\] +
-		self\[13\] * self\[2\] * self\[8\] -
-		self\[13\] * self\[4\] * self\[6\]
+	out[11] = self[1]  * self[6] * self[16] -
+		self[1]  * self[8] * self[14] -
+		self[5]  * self[2] * self[16] +
+		self[5]  * self[4] * self[14] +
+		self[13] * self[2] * self[8] -
+		self[13] * self[4] * self[6]
 
-	out\[15\] = -self\[1\]  * self\[6\] * self\[15\] +
-		self\[1\]  * self\[7\] * self\[14\] +
-		self\[5\]  * self\[2\] * self\[15\] -
-		self\[5\]  * self\[3\] * self\[14\] -
-		self\[13\] * self\[2\] * self\[7\] +
-		self\[13\] * self\[3\] * self\[6\]
+	out[15] = -self[1]  * self[6] * self[15] +
+		self[1]  * self[7] * self[14] +
+		self[5]  * self[2] * self[15] -
+		self[5]  * self[3] * self[14] -
+		self[13] * self[2] * self[7] +
+		self[13] * self[3] * self[6]
 
-	out\[4\] = -self\[2\]  * self\[7\] * self\[12\] +
-		self\[2\]  * self\[8\] * self\[11\] +
-		self\[6\]  * self\[3\] * self\[12\] -
-		self\[6\]  * self\[4\] * self\[11\] -
-		self\[10\] * self\[3\] * self\[8\] +
-		self\[10\] * self\[4\] * self\[7\]
+	out[4] = -self[2]  * self[7] * self[12] +
+		self[2]  * self[8] * self[11] +
+		self[6]  * self[3] * self[12] -
+		self[6]  * self[4] * self[11] -
+		self[10] * self[3] * self[8] +
+		self[10] * self[4] * self[7]
 
-	out\[8\] = self\[1\] * self\[7\] * self\[12\] -
-		self\[1\] * self\[8\] * self\[11\] -
-		self\[5\] * self\[3\] * self\[12\] +
-		self\[5\] * self\[4\] * self\[11\] +
-		self\[9\] * self\[3\] * self\[8\] -
-		self\[9\] * self\[4\] * self\[7\]
+	out[8] = self[1] * self[7] * self[12] -
+		self[1] * self[8] * self[11] -
+		self[5] * self[3] * self[12] +
+		self[5] * self[4] * self[11] +
+		self[9] * self[3] * self[8] -
+		self[9] * self[4] * self[7]
 
-	out\[12\] = -self\[1\] * self\[6\] * self\[12\] +
-		self\[1\] * self\[8\] * self\[10\] +
-		self\[5\] * self\[2\] * self\[12\] -
-		self\[5\] * self\[4\] * self\[10\] -
-		self\[9\] * self\[2\] * self\[8\] +
-		self\[9\] * self\[4\] * self\[6\]
+	out[12] = -self[1] * self[6] * self[12] +
+		self[1] * self[8] * self[10] +
+		self[5] * self[2] * self[12] -
+		self[5] * self[4] * self[10] -
+		self[9] * self[2] * self[8] +
+		self[9] * self[4] * self[6]
 
-	out\[16\] = self\[1\] * self\[6\] * self\[11\] -
-		self\[1\] * self\[7\] * self\[10\] -
-		self\[5\] * self\[2\] * self\[11\] +
-		self\[5\] * self\[3\] * self\[10\] +
-		self\[9\] * self\[2\] * self\[7\] -
-		self\[9\] * self\[3\] * self\[6\]
+	out[16] = self[1] * self[6] * self[11] -
+		self[1] * self[7] * self[10] -
+		self[5] * self[2] * self[11] +
+		self[5] * self[3] * self[10] +
+		self[9] * self[2] * self[7] -
+		self[9] * self[3] * self[6]
 
-	local det = self\[1\] * out\[1\] + self\[2\] * out\[5\] + self\[3\] * out\[9\] + self\[4\] * out\[13\]
+	local det = self[1] * out[1] + self[2] * out[5] + self[3] * out[9] + self[4] * out[13]
 
 	if det == 0 then return self end
 
 	det = 1.0 / det
 
 	for i = 1, 16 do
-		out\[i\] = out\[i\] * det
+		out[i] = out[i] * det
 	end
 
 	return out
@@ -8655,15 +8655,15 @@ function mat4.project(obj, view, projection, viewport)
 	position = view:transpose() * position
 	position = projection:transpose() * position
 
-	position\[1\] = position\[1\] / position\[4\] * 0.5 + 0.5
-	position\[2\] = position\[2\] / position\[4\] * 0.5 + 0.5
-	position\[3\] = position\[3\] / position\[4\] * 0.5 + 0.5
-	position\[4\] = position\[4\] / position\[4\] * 0.5 + 0.5
+	position[1] = position[1] / position[4] * 0.5 + 0.5
+	position[2] = position[2] / position[4] * 0.5 + 0.5
+	position[3] = position[3] / position[4] * 0.5 + 0.5
+	position[4] = position[4] / position[4] * 0.5 + 0.5
 
-	position\[1\] = position\[1\] * viewport\[3\] + viewport\[1\]
-	position\[2\] = position\[2\] * viewport\[4\] + viewport\[2\]
+	position[1] = position[1] * viewport[3] + viewport[1]
+	position[2] = position[2] * viewport[4] + viewport[2]
 
-	return vec3(position\[1\], position\[2\], position\[3\])
+	return vec3(position[1], position[2], position[3])
 end
 
 -- https://github.com/g-truc/glm/blob/master/glm/gtc/matrix_transform.inl#L338
@@ -8671,22 +8671,22 @@ end
 function mat4.unproject(win, view, projection, viewport)
 	local inverse = (projection:transpose() * view:transpose()):invert()
 	local position = { win.x, win.y, win.z, 1 }
-	position\[1\] = (position\[1\] - viewport\[1\]) / viewport\[3\]
-	position\[2\] = (position\[2\] - viewport\[2\]) / viewport\[4\]
+	position[1] = (position[1] - viewport[1]) / viewport[3]
+	position[2] = (position[2] - viewport[2]) / viewport[4]
 
-	position\[1\] = position\[1\] * 2 - 1
-	position\[2\] = position\[2\] * 2 - 1
-	position\[3\] = position\[3\] * 2 - 1
-	position\[4\] = position\[4\] * 2 - 1
+	position[1] = position[1] * 2 - 1
+	position[2] = position[2] * 2 - 1
+	position[3] = position[3] * 2 - 1
+	position[4] = position[4] * 2 - 1
 
 	position = inverse * position
 
-	position\[1\] = position\[1\] / position\[4\]
-	position\[2\] = position\[2\] / position\[4\]
-	position\[3\] = position\[3\] / position\[4\]
-	position\[4\] = position\[4\] / position\[4\]
+	position[1] = position[1] / position[4]
+	position[2] = position[2] / position[4]
+	position[3] = position[3] / position[4]
+	position[4] = position[4] / position[4]
 
-	return vec3(position\[1\], position\[2\], position\[3\])
+	return vec3(position[1], position[2], position[3])
 end
 
 function mat4:look_at(eye, center, up)
@@ -8695,19 +8695,19 @@ function mat4:look_at(eye, center, up)
 	local new_up = side:cross(forward):normalize()
 
 	local view = mat4()
-	view\[1\]	= side.x
-	view\[5\]	= side.y
-	view\[9\]	= side.z
+	view[1]	= side.x
+	view[5]	= side.y
+	view[9]	= side.z
 
-	view\[2\]	= new_up.x
-	view\[6\]	= new_up.y
-	view\[10\]= new_up.z
+	view[2]	= new_up.x
+	view[6]	= new_up.y
+	view[10]= new_up.z
 
-	view\[3\]	= -forward.x
-	view\[7\]	= -forward.y
-	view\[11\]= -forward.z
+	view[3]	= -forward.x
+	view[7]	= -forward.y
+	view[11]= -forward.z
 
-	view\[16\]= 1
+	view[16]= 1
 
 	-- Fix 1u offset
 	local new_eye = eye + forward
@@ -8719,10 +8719,10 @@ end
 
 function mat4:transpose()
 	local m = {
-		self\[1\], self\[5\], self\[9\], self\[13\],
-		self\[2\], self\[6\], self\[10\], self\[14\],
-		self\[3\], self\[7\], self\[11\], self\[15\],
-		self\[4\], self\[8\], self\[12\], self\[16\]
+		self[1], self[5], self[9], self[13],
+		self[2], self[6], self[10], self[14],
+		self[3], self[7], self[11], self[15],
+		self[4], self[8], self[12], self[16]
 	}
 	return mat4(m)
 end
@@ -8734,10 +8734,10 @@ end
 -- Multiply mat4 by a mat4. Tested OK
 function mat4:__mul(m)
 	if #m == 4 then
-		local tmp = matrix_mult_nxn(self:to_vec4s(), { {m\[1\]}, {m\[2\]}, {m\[3\]}, {m\[4\]} })
+		local tmp = matrix_mult_nxn(self:to_vec4s(), { {m[1]}, {m[2]}, {m[3]}, {m[4]} })
 		local v = {}
 		for i=1, 4 do
-			v\[i\] = tmp\[i\]\[1\]
+			v[i] = tmp[i][1]
 		end
 		return v
 	end
@@ -8745,7 +8745,7 @@ function mat4:__mul(m)
 	local out = mat4()
 	for i=0, 12, 4 do
 		for j=1, 4 do
-			out\[i+j\] = m\[j\] * self\[i+1\] + m\[j+4\] * self\[i+2\] + m\[j+8\] * self\[i+3\] + m\[j+12\] * self\[i+4\]
+			out[i+j] = m[j] * self[i+1] + m[j+4] * self[i+2] + m[j+8] * self[i+3] + m[j+12] * self[i+4]
 		end
 	end
 	return out
@@ -8753,17 +8753,241 @@ end
 
 function mat4:to_vec4s()
 	return {
-		{ self\[1\], self\[2\], self\[3\], self\[4\] },
-		{ self\[5\], self\[6\], self\[7\], self\[8\] },
-		{ self\[9\], self\[10\], self\[11\], self\[12\] },
-		{ self\[13\], self\[14\], self\[15\], self\[16\] }
+		{ self[1], self[2], self[3], self[4] },
+		{ self[5], self[6], self[7], self[8] },
+		{ self[9], self[10], self[11], self[12] },
+		{ self[13], self[14], self[15], self[16] }
 	}
 end
 
 return mat4
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.vec2"]=([[-- <pack hate.cpml.modules.vec2> --
---\[\[
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.quadtree"])sources["hate.cpml.modules.quadtree"]=([===[-- <pack hate.cpml.modules.quadtree> --
+-- based on a gist from mentlerd
+-- https://gist.github.com/mentlerd/4587030
+local quadtree = {}
+
+quadtree.__index = quadtree
+
+function new()
+  local t = { 
+		root = {
+			size = 1, 
+		
+			x = 0,
+			y = 0,
+		}
+	}
+	setmetatable(t, quadtree)
+	return t
+end
+
+-- Tree metatable
+function quadtree:expand_if_needed(x, y)
+	local root = self.root
+
+	local size = root.size
+	
+	-- Relative coordinates
+	local rX = x - root.x
+	local rY = y - root.y
+	
+	-- Out of bounds marks
+	local xPos = rX >= size
+	local xNeg = rX < -size
+	
+	local yPos = rY >= size
+	local yNeg = rY < -size
+		
+	-- Check if the point is in the bounds
+	if xPos or xNeg or
+		yPos or yNeg then
+		
+		-- Change the root node to fit
+		local node = {
+			size = size * 2,
+			
+			x = 0,
+			y = 0,
+		}
+
+		local index = 0
+		
+		-- Offset the new root, and place the old into it
+		if rX >= 0 then node.x = root.x + size end
+		if rY >= 0 then node.y = root.y + size end
+		
+		if rX < 0 then
+			node.x = root.x - size
+			index = index + 1
+		end
+		if rY < 0 then
+			node.y = root.y - size
+			index = index + 2
+		end
+
+		node[index] = root
+
+		-- Erase previous root information
+		root.size = nil
+		root.x = nil
+		root.y = nil
+		
+		-- Set the new root
+		self.root = node
+		
+		-- Repeat until the size is sufficient
+		self:expand_if_needed(x, y)
+	end
+end
+
+function quadtree:get(x, y)
+	self:expand_if_needed(x, y)
+	
+	-- Convert the coordinates relative to the root
+	local node = self.root
+	local size = node.size
+	
+	local rX = x - node.x
+	local rY = y - node.y
+	
+	while true do
+		size = size / 2
+
+		local index = 0
+		
+		-- Seek, and offset the point for the next node
+		if rX >= 0 then 
+			index = index + 1
+			rX = rX - size 
+		else
+			rX = rX + size
+		end
+				
+		if rY >= 0 then
+			index = index + 2 
+			rY = rY - size
+		else
+			rY = rY + size
+		end
+				
+		-- Get the node/value at the calculated index
+		local child = node[index]
+		
+		if type(child) ~= "table" then
+			return child
+		end
+		
+		-- We must go deeper!
+		node = child
+	end
+end
+
+function quadtree:set(x, y, value)
+	local function merge_if_possible(stack, path, ref)
+		for i = #stack, 1, -1 do
+			local node = stack[i]
+			
+			-- Check if every value is the same in the node		
+			for x = 0, 7, 1 do
+				if ref ~= node[x] then
+					-- Break if any is not
+					return
+				end
+			end
+			
+			-- Successful merge
+			stack[i -1][path[i]] = ref
+		end
+	end
+
+	self:expand_if_needed(x, y)
+	
+	-- Convert the coordinates relative to the root
+	local node = self.root
+	local size = node.size
+	
+	local rX = x - node.x
+	local rY = y - node.y
+	
+	local stack = {}
+	local path = {}
+	
+	while true do	
+		size = size / 2
+
+		local index = 0
+		
+		if rX >= 0 then
+			index = index + 1
+			rX = rX - size
+		else
+			rX = rX + size
+		end
+
+		if rY >= 0 then
+			index = index + 2 
+			rY = rY - size
+		else
+			rY = rY + size
+		end
+				
+		table.insert(stack, node)
+		table.insert(path, index)
+		
+		-- Get the node/value at the calculated index
+		local child = node[index]
+		
+		if type(child) ~= "table" then
+			if (child ~= value) then
+				-- No node/value present
+				if child == nil then
+					-- If the size is not 1, it needs further populating,
+					-- Otherwise, it just needs a value
+					if size ~= 0.5 then				
+						child = {}
+						node[index] = child
+					else						
+						node[index] = value
+						
+						merge_if_possible(stack, path, value)
+						return
+					end
+				else
+					-- There is a node, but its value does not match, divide it
+					-- If the size is over 1, otherwise, just set the value
+					if size ~= 0.5 then						
+						local split = {
+							child, child, child, child
+						}
+						
+						child = split
+						node[index] = split
+					else					
+						-- Hit a real leaf, set the value and walk away
+						node[index] = value
+						
+						merge_if_possible(stack, path, value)
+						return
+					end
+				end
+			else
+				-- This treenode already has the same value, nothing to do
+				return
+			end
+		end
+		
+		node = child
+	end
+end
+
+return setmetatable(
+	{ new = new },
+	{ __call = function(_, ...) return new(...) end }
+)
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.vec2"])sources["hate.cpml.modules.vec2"]=([===[-- <pack hate.cpml.modules.vec2> --
+--[[
 Copyright (c) 2010-2013 Matthias Richter
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -8787,7 +9011,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-\]\]--
+]]--
 
 local assert = assert
 local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
@@ -8954,9 +9178,9 @@ end
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.mesh"]=([[-- <pack hate.cpml.modules.mesh> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.mesh"])sources["hate.cpml.modules.mesh"]=([===[-- <pack hate.cpml.modules.mesh> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 
 local mesh = {}
@@ -8974,8 +9198,264 @@ function mesh.average(vertices)
 end
 
 return mesh
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.modules.utils"]=([[-- <pack hate.cpml.modules.utils> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.octree"])sources["hate.cpml.modules.octree"]=([===[-- <pack hate.cpml.modules.octree> --
+-- based on a gist from mentlerd
+-- https://gist.github.com/mentlerd/4587030
+local octree = {}
+
+octree.__index = octree
+
+function new()
+  local t = { 
+		root = {
+			size = 1, 
+		
+			x = 0,
+			y = 0,
+			z = 0
+		}
+	}
+	setmetatable(t, octree)
+	return t
+end
+
+-- Tree metatable
+function octree:expand_if_needed(x, y, z)
+	local root = self.root
+
+	local size = root.size
+	
+	-- Relative coordinates
+	local rX = x - root.x
+	local rY = y - root.y
+	local rZ = z - root.z
+	
+	-- Out of bounds marks
+	local xPos = rX >= size
+	local xNeg = rX < -size
+	
+	local yPos = rY >= size
+	local yNeg = rY < -size
+	
+	local zPos = rZ >= size
+	local zNeg = rZ < -size
+	
+	-- Check if the point is in the bounds
+	if xPos or xNeg or
+		yPos or yNeg or
+		zPos or zNeg then
+		
+		-- Change the root node to fit
+		local node = {
+			size = size * 2,
+			
+			x = 0,
+			y = 0,
+			z = 0
+		}
+
+		local index = 0
+		
+		-- Offset the new root, and place the old into it
+		if rX >= 0 then node.x = root.x + size end
+		if rY >= 0 then node.y = root.y + size end
+		if rZ >= 0 then node.z = root.z + size end
+		
+		if rX < 0 then
+			node.x = root.x - size
+			index = index + 1
+		end
+		if rY < 0 then
+			node.y = root.y - size
+			index = index + 2
+		end
+		if rZ < 0 then
+			node.z = root.z - size
+			index = index + 4
+		end
+
+		node[index] = root
+
+		-- Erase previous root information
+		root.size = nil
+		root.x = nil
+		root.y = nil
+		root.z = nil
+		
+		-- Set the new root
+		self.root = node
+		
+		-- Repeat until the size is sufficient
+		self:expand_if_needed(x, y, z)
+	end
+end
+
+function octree:get(x, y, z)
+	self:expand_if_needed(x, y, z)
+	
+	-- Convert the coordinates relative to the root
+	local node = self.root
+	local size = node.size
+	
+	local rX = x - node.x
+	local rY = y - node.y
+	local rZ = z - node.z
+	
+	while true do
+		size = size / 2
+
+		local index = 0
+			
+		-- Seek, and offset the point for the next node
+		if rX >= 0 then 
+			index = index + 1
+			rX = rX - size 
+		else
+			rX = rX + size
+		end
+				
+		if rY >= 0 then
+			index = index + 2 
+			rY = rY - size
+		else
+			rY = rY + size
+		end
+		
+		if rZ >= 0 then 
+			index = index + 4 
+			rZ = rZ - size 
+		else
+			rZ = rZ + size
+		end
+		
+		-- Get the node/value at the calculated index
+		local child = node[index]
+		
+		if type(child) ~= "table" then	
+			return child
+		end
+		
+		-- We must go deeper!
+		node = child
+	end
+end
+
+local function merge_if_possible(stack, path, ref)
+
+	for i = #stack, 1, -1 do
+		local node = stack[i]
+		
+		-- Check if every value is the same in the node		
+		for x = 0, 7, 1 do
+			if ref ~= node[x] then
+				-- Break if any is not
+				return
+			end
+		end
+		
+		-- Successful merge
+		stack[i -1][path[i]] = ref
+	end
+
+end
+
+function octree:set(x, y, z, value)
+	self:expand_if_needed(x, y, z)
+	
+	-- Convert the coordinates relative to the root
+	local node = self.root
+	local size = node.size
+	
+	local rX = x - node.x
+	local rY = y - node.y
+	local rZ = z - node.z
+	
+	local stack = {}
+	local path = {}
+	
+	while true do	
+		size = size / 2
+
+		local index = 0
+		
+		if rX >= 0 then 
+			index = index + 1
+			rX = rX - size
+		else
+			rX = rX + size
+		end
+
+		if rY >= 0 then
+			index = index + 2 
+			rY = rY - size
+		else
+			rY = rY + size
+		end
+		
+		if rZ >= 0 then 
+			index = index + 4
+			rZ = rZ - size
+		else
+			rZ = rZ + size
+		end
+		
+		table.insert(stack, node)
+		table.insert(path, index)
+		
+		-- Get the node/value at the calculated index
+		local child = node[index]
+		
+		if type(child) ~= "table" then
+			if (child ~= value) then
+				-- No node/value present
+				if child == nil then
+					-- If the size is not 1, it needs further populating,
+					-- Otherwise, it just needs a value
+					if size ~= 0.5 then				
+						child = {}
+						node[index] = child
+					else						
+						node[index] = value
+						
+						merge_if_possible(stack, path, value)
+						return
+					end
+				else
+					-- There is a node, but its value does not match, divide it
+					-- If the size is over 1, otherwise, just set the value
+					if size ~= 0.5 then						
+						local split = {
+							child, child, child, child, 
+							child, child, child, child
+						}
+						
+						child = split
+						node[index] = split
+					else					
+						-- Hit a real leaf, set the value and walk away
+						node[index] = value
+						
+						merge_if_possible(stack, path, value)
+						return
+					end
+				end
+			else
+				-- This treenode already has the same value, nothing to do
+				return
+			end
+		end
+		
+		node = child
+	end
+end
+
+return setmetatable(
+	{ new = new },
+	{ __call = function(_, ...) return new(...) end }
+)
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.modules.utils"])sources["hate.cpml.modules.utils"]=([===[-- <pack hate.cpml.modules.utils> --
 local utils = {}
 
 function utils.clamp(v, min, max)
@@ -9009,9 +9489,9 @@ function utils.is_pot(n)
 end
 
 return utils
-]]):gsub('\\([%]%[])','%1')
-sources["hate.cpml.init"]=([[-- <pack hate.cpml.init> --
---\[\[
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.cpml.init"])sources["hate.cpml.init"]=([===[-- <pack hate.cpml.init> --
+--[[
                   .'@@@@@@@@@@@@@@#:
               ,@@@@#;            .'@@@@+
            ,@@@'                      .@@@#
@@ -9038,7 +9518,7 @@ sources["hate.cpml.init"]=([[-- <pack hate.cpml.init> --
              #@@@;                  .@@@@:
                 :@@@@@@@++;;;+#@@@@@@+`
                       .;'+++++;.
---\]\]
+--]]
 local current_folder = (...):gsub('%.init$', '') .. "."
 
 local cpml = {
@@ -9064,13 +9544,13 @@ local files = {
 }
 
 for _, v in ipairs(files) do
-	cpml\[v\] = require(current_folder .. "modules." .. v)
+	cpml[v] = require(current_folder .. "modules." .. v)
 end
 
 return cpml
-]]):gsub('\\([%]%[])','%1')
-sources["hate.timer"]=([[-- <pack hate.timer> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.timer"])sources["hate.timer"]=([===[-- <pack hate.timer> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local sdl = require(current_folder .. "sdl2")
 
 local timer = {}
@@ -9101,13 +9581,13 @@ function timer.step()
 	)
 
 	-- we only want to average everything from the last second
-	local first_delta = (now - delta_list\[1\]\[2\]) / freq
+	local first_delta = (now - delta_list[1][2]) / freq
 	if first_delta > 1 then
 		table.remove(delta_list, 1)
 
 		local average = 0
 		for i=1,#delta_list do
-			average = average + delta_list\[i\]\[1\]
+			average = average + delta_list[i][1]
 		end
 		average = (average / #delta_list)
 
@@ -9119,7 +9599,7 @@ function timer.step()
 
 	-- print(average_delta)
 
-	last_delta = delta_list\[#delta_list\]\[1\]
+	last_delta = delta_list[#delta_list][1]
 
 	last = now
 end
@@ -9145,10 +9625,10 @@ function timer.getFPS()
 end
 
 return timer
-]]):gsub('\\([%]%[])','%1')
-sources["hate.physfs"]=([[-- <pack hate.physfs> --
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.physfs"])sources["hate.physfs"]=([===[-- <pack hate.physfs> --
 local ffi = require "ffi"
-local cdef = ffi.cdef(\[\[
+local cdef = ffi.cdef([[
 typedef unsigned char PHYSFS_uint8;
 typedef signed char PHYSFS_sint8;
 typedef unsigned short PHYSFS_uint16;
@@ -9231,26 +9711,26 @@ PHYSFS_sint64 PHYSFS_read(PHYSFS_File *handle, void *buffer, PHYSFS_uint32 objSi
 void PHYSFS_freeList(void *listVar);
 void PHYSFS_getLinkedVersion(PHYSFS_Version *ver);
 void PHYSFS_permitSymbolicLinks(int allow);
-\]\])
+]])
 
 local C = ffi.load(ffi.os == "Windows" and "bin/physfs" or "physfs")
 local physfs = { C = C }
 
 local function register(luafuncname, funcname, is_string)
 	local symexists, msg = pcall(function()
-		local sym = C\[funcname\]
+		local sym = C[funcname]
 	end)
 	if not symexists then
 		error("Symbol " .. funcname .. " not found. Something is really, really wrong.")
 	end
 	-- kill the need to use ffi.string on several functions, for convenience.
 	if is_string then
-		physfs\[luafuncname\] = function(...)
-			local r = C\[funcname\](...)
+		physfs[luafuncname] = function(...)
+			local r = C[funcname](...)
 			return ffi.string(r)
 		end
 	else
-		physfs\[luafuncname\] = C\[funcname\]
+		physfs[luafuncname] = C[funcname]
 	end
 end
 
@@ -9309,9 +9789,9 @@ register("getLinkedVersion", "PHYSFS_getLinkedVersion")
 register("permitSymbolicLinks", "PHYSFS_permitSymbolicLinks")
 
 return physfs
-]]):gsub('\\([%]%[])','%1')
-sources["hate.math"]=([[-- <pack hate.math> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+assert(not sources["hate.math"])sources["hate.math"]=([===[-- <pack hate.math> --
+local current_folder = (...):gsub('%.[^%.]+$', '') .. "."
 local cpml = require(current_folder .. "cpml")
 
 local math = {}
@@ -9326,506 +9806,19 @@ function math.gammaToLinear(...)
 end
 
 return math
-]]):gsub('\\([%]%[])','%1')
-sources["hate.init"]=([[-- <pack hate.init> --
-local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
-
-local ffi = require "ffi"
-local sdl = require(current_folder .. "sdl2")
-local opengl = require(current_folder .. "opengl")
-
-local flags
-
-local hate = {
-	_LICENSE = "HATE is distributed under the terms of the MIT license. See LICENSE.md.",
-	_URL = "https://github.com/excessive/hate",
-	_VERSION_MAJOR = 0,
-	_VERSION_MINOR = 0,
-	_VERSION_REVISION = 1,
-	_VERSION_CODENAME = "Tsubasa",
-	_DESCRIPTION = "It's not LÖVE."
-}
-
-hate._VERSION = string.format(
-	"%d.%d.%d",
-	hate._VERSION_MAJOR,
-	hate._VERSION_MINOR,
-	hate._VERSION_REVISION
-)
-
--- Set a global so that libs like lcore can detect hate.
--- (granted, most things will also have the "hate" global)
-FULL_OF_HATE = hate._VERSION
-
-local function handle_events()
-	local window = hate.state.window
-
-	local event = ffi.new("SDL_Event\[?\]", 1)
-	sdl.pollEvent(event)
-	event = event\[0\]
-
-	-- No event, we're done here.
-	if event.type == 0 then
-		return
-	end
-
-	local function sym2str(sym)
-		-- 0x20-0x7E are ASCII printable characters
-		if sym >= 0x20 and sym < 0x7E then
-			return string.char(sym)
-		end
-
-		local specials = {
-			\[13\] = "return",
-			\[27\] = "escape",
-			\[8\] = "backspace",
-			\[9\] = "tab",
-		}
-
-		if specials\[sym\] then
-			return specials\[sym\]
-		end
-
-		print(string.format("Unhandled key %d, returning the key code.", sym))
-
-		return sym
-	end
-
-	local handlers = {
-		\[sdl.QUIT\] = function()
-			hate.quit()
-		end,
-		\[sdl.TEXTINPUT\] = function(event)
-			local e = event.text
-			local t = ffi.string(e.text)
-			hate.textinput(t)
-		end,
-		\[sdl.KEYDOWN\] = function(event)
-			local e = event.key
-			local key = sym2str(e.keysym.sym)
-			-- e.repeat conflicts with the repeat keyword.
-			hate.keypressed(key, e\["repeat"\])
-
-			-- escape to quit by default.
-			if key == "escape" then
-				hate.event.quit()
-			end
-		end,
-		\[sdl.KEYUP\] = function(event)
-			local e = event.key
-			local key = sym2str(e.keysym.sym)
-			hate.keyreleased(key)
-		end,
-		\[sdl.TEXTEDITING\] = function(event)
-			local e = event.edit
-			-- TODO
-		end,
-		\[sdl.MOUSEMOTION\] = function(event) end,
-		-- resize, minimize, etc.
-		\[sdl.WINDOWEVENT\] = function(event)
-			local window = event.window
-			if window.event == sdl.WINDOWEVENT_RESIZED then
-				local w, h = tonumber(window.data1), tonumber(window.data2)
-				hate.resize(w, h)
-			end
-		end,
-		\[sdl.MOUSEBUTTONDOWN\] = function(event)
-			local e = event.button
-			print(e.x, e.y)
-		end,
-		\[sdl.MOUSEBUTTONUP\] = function(event)
-			local e = event.button
-			print(e.x, e.y)
-		end,
-	}
-
-	if handlers\[event.type\] then
-		handlers\[event.type\](event)
-		return
-	end
-
-	print(string.format("Unhandled event type: %s", event.type))
-end
-
-function hate.getVersion()
-	return hate._VERSION_MAJOR, hate._VERSION_MINOR, hate._VERSION_REVISION, hate._VERSION_CODENAME, "HATE"
-end
-
-function hate.run()
-	-- TODO: remove this.
-	local config = hate.config
-
-	if hate.math then
-	--\[\[
-		hate.math.setRandomSeed(os.time())
-
-		-- first few randoms aren't good, throw them out.
-		for i=1,3 do hate.math.random() end
-	--\]\]
-	end
-
-	hate.load(arg)
-
-	if hate.window then
-		-- We don't want the first frame's dt to include time taken by hate.load.
-		if hate.timer then hate.timer.step() end
-
-		local dt = 0
-
-		while true do
-			hate.event.pump()
-			if not hate.state.running then
-				break
-			end
-
-			-- Update dt, as we'll be passing it to update
-			if hate.timer then
-				hate.timer.step()
-				dt = hate.timer.getDelta()
-			end
-
-			-- Call update and draw
-			if hate.update then hate.update(dt) end -- will pass 0 if hate.timer is disabled
-
-			if hate.window and hate.graphics --\[\[and hate.window.isCreated()\]\] then
-				hate.graphics.clear()
-				hate.graphics.origin()
-				if hate.draw then hate.draw() end
-				hate.graphics.present()
-			end
-
-			if hate.timer then
-				if hate.window and config.window.delay then
-					if config.window.delay >= 0.001 then
-						hate.timer.sleep(config.window.delay)
-					end
-				elseif hate.window then
-					hate.timer.sleep(0.001)
-				end
-			end
-
-			collectgarbage()
-		end
-
-		sdl.GL_MakeCurrent(hate.state.window, nil)
-		sdl.GL_DeleteContext(hate.state.gl_context)
-		sdl.destroyWindow(hate.state.window)
-	end
-
-	hate.quit()
-end
-
-function hate.init()
-	flags = {
-		gl3 = false,
-		show_sdl_version = false
-	}
-
-	for _, v in ipairs(arg) do
-		for k, _ in pairs(flags) do
-			if v == "--" .. k then
-				flags\[k\] = true
-			end
-		end
-	end
-
-	local callbacks = {
-		"load", "quit", "conf",
-		"keypressed", "keyreleased",
-		"textinput", "resize"
-	}
-
-	for _, v in ipairs(callbacks) do
-		local __NULL__ = function() end
-		hate\[v\] = __NULL__
-	end
-
-	hate.event = {}
-	hate.event.pump = handle_events
-	hate.event.quit = function()
-		hate.state.running = false
-	end
-
-	hate.filesystem = require(current_folder .. "filesystem")
-	hate.filesystem.init(arg\[0\], "HATE")
-
-	if hate.filesystem.exists("conf.lua") then
-		xpcall(require, hate.errhand, "conf")
-	end
-	hate.filesystem.deinit()
-
-	local config = {
-		name       = "hate",
-		window = {
-			width   = 854,
-			height  = 480,
-			vsync   = true,
-			delay   = 0.001,
-			fsaa    = 0, -- for love <= 0.9.1 compatibility
-			msaa    = 0,
-			-- TODO: debug context + multiple attempts at creating contexts
-			debug   = true,
-			debug_verbose = false,
-			srgb    = true,
-			gl      = {
-				{ 3, 3 },
-				{ 2, 1 }
-			}
-		},
-		modules = {
-			math       = true,
-			timer      = true,
-			graphics   = true,
-			system     = true,
-		}
-	}
-
-	hate.conf(config)
-	hate.config = config
-	hate.filesystem.init(arg\[0\], hate.config.name)
-
-	hate.state = {}
-	hate.state.running = true
-	hate.state.config = config
-
-	sdl.init(sdl.INIT_EVERYTHING)
-
-	if config.modules.math then
-		hate.math = require(current_folder .. "math")
-	end
-
-	if config.modules.timer then
-		hate.timer = require(current_folder .. "timer")
-		hate.timer.init()
-	end
-
-	if config.modules.window then
-		-- FIXME
-		-- if flags.gl3 then
-		-- 	sdl.GL_SetAttribute(sdl.GL_CONTEXT_MAJOR_VERSION, 3)
-		-- 	sdl.GL_SetAttribute(sdl.GL_CONTEXT_MINOR_VERSION, 3)
-		-- 	sdl.GL_SetAttribute(sdl.GL_CONTEXT_PROFILE_MASK, sdl.GL_CONTEXT_PROFILE_CORE)
-		-- end
-		if config.window.debug then
-			sdl.GL_SetAttribute(sdl.GL_CONTEXT_FLAGS, sdl.GL_CONTEXT_DEBUG_FLAG)
-		end
-		sdl.GL_SetAttribute(sdl.GL_MULTISAMPLESAMPLES, math.max(config.window.fsaa or 0, config.window.msaa or 0))
-
-		local window_flags = tonumber(sdl.WINDOW_OPENGL)
-
-		if config.window.resizable then
-			window_flags = bit.bor(window_flags, tonumber(sdl.WINDOW_RESIZABLE))
-		end
-
-		if config.window.vsync then
-			window_flags = bit.bor(window_flags, tonumber(sdl.RENDERER_PRESENTVSYNC))
-		end
-
-		if config.window.srgb and jit.os ~= "Linux" then
-			-- print(sdl.GL_FRAMEBUFFER_SRGB_CAPABLE)
-			sdl.GL_SetAttribute(sdl.GL_FRAMEBUFFER_SRGB_CAPABLE, 1)
-		end
-
-		local window = sdl.createWindow(hate.config.name,
-			sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-			hate.config.window.width, hate.config.window.height,
-			window_flags
-		)
-		assert(window)
-
-		local ctx = sdl.GL_CreateContext(window)
-
-		assert(ctx)
-
-		hate.state.window = window
-		hate.state.gl_context = ctx
-
-		sdl.GL_MakeCurrent(window, ctx)
-
-		if config.window.vsync then
-			if type(config.window.vsync) == "number" then
-				sdl.GL_SetSwapInterval(config.window.vsync)
-			else
-				sdl.GL_SetSwapInterval(1)
-			end
+]===]):gsub('\\([%]%[]===)\\([%]%[])','%1%2')
+local add
+if not pcall(function() add = require"aioruntime".add end) then
+        local loadstring=_G.loadstring or _G.load; local preload = require"package".preload
+        add = function(name, rawcode)
+		if not preload[name] then
+		        preload[name] = function(...) return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...) end
 		else
-			sdl.GL_SetSwapInterval(0)
+			print("WARNING: overwrite "..name)
 		end
-
-
-		opengl.loader = function(fn)
-			local ptr = sdl.GL_GetProcAddress(fn)
-			if flags.gl_debug then
-				print(string.format("Loaded GL function: %s (%s)", fn, tostring(ptr)))
-			end
-			return ptr
-		end
-		opengl:import()
-
-		local version = ffi.string(gl.GetString(GL.VERSION))
-		local renderer = ffi.string(gl.GetString(GL.RENDERER))
-
-		if config.window.debug then
-			if gl.DebugMessageCallbackARB then
-				local gl_debug_source_string = {
-					\[tonumber(GL.DEBUG_SOURCE_API_ARB)\] = "API",
-					\[tonumber(GL.DEBUG_SOURCE_WINDOW_SYSTEM_ARB)\] = "WINDOW_SYSTEM",
-					\[tonumber(GL.DEBUG_SOURCE_SHADER_COMPILER_ARB)\] = "SHADER_COMPILER",
-					\[tonumber(GL.DEBUG_SOURCE_THIRD_PARTY_ARB)\] = "THIRD_PARTY",
-					\[tonumber(GL.DEBUG_SOURCE_APPLICATION_ARB)\] = "APPLICATION",
-					\[tonumber(GL.DEBUG_SOURCE_OTHER_ARB)\] = "OTHER"
-				}
-				local gl_debug_type_string = {
-					\[tonumber(GL.DEBUG_TYPE_ERROR_ARB)\] = "ERROR",
-					\[tonumber(GL.DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB)\] = "DEPRECATED_BEHAVIOR",
-					\[tonumber(GL.DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB)\] = "UNDEFINED_BEHAVIOR",
-					\[tonumber(GL.DEBUG_TYPE_PORTABILITY_ARB)\] = "PORTABILITY",
-					\[tonumber(GL.DEBUG_TYPE_PERFORMANCE_ARB)\] = "PERFORMANCE",
-					\[tonumber(GL.DEBUG_TYPE_OTHER_ARB)\] = "OTHER"
-				}
-				local gl_debug_severity_string = {
-					\[tonumber(GL.DEBUG_SEVERITY_HIGH_ARB)\] = "HIGH",
-					\[tonumber(GL.DEBUG_SEVERITY_MEDIUM_ARB)\] = "MEDIUM",
-					\[tonumber(GL.DEBUG_SEVERITY_LOW_ARB)\] = "LOW"
-				}
-				gl.DebugMessageCallbackARB(function(source, type, id, severity, length, message, userParam)
-					if not hate.config.window.debug_verbose and type == GL.DEBUG_TYPE_OTHER_ARB then
-						return
-					end
-					print(string.format("GL DEBUG source: %s type: %s id: %s severity: %s message: %q",
-					gl_debug_source_string\[tonumber(source)\],
-					gl_debug_type_string\[tonumber(type)\],
-					tonumber(id),
-					gl_debug_severity_string\[tonumber(severity)\],
-					ffi.string(message)))
-				end, nil)
-			end
-		end
-
-		if flags.show_sdl_version then
-			local v = ffi.new("SDL_version\[1\]")
-			sdl.getVersion(v)
-			print(string.format("SDL %d.%d.%d", v\[0\].major, v\[0\].minor, v\[0\].patch))
-		end
-
-		if flags.gl_debug then
-			print(string.format("OpenGL %s on %s", version, renderer))
-		end
-
-		hate.window = require(current_folder .. "window")
-		hate.window._state = hate.state
-
-		if config.modules.graphics then
-			hate.graphics = require(current_folder .. "graphics")
-			hate.graphics._state = hate.state
-			hate.graphics.init()
-		end
-	end
-
-	if config.modules.system then
-		hate.system = require(current_folder .. "system")
-	end
-
-	xpcall(require, hate.errhand, "main")
-
-	hate.run()
-
-	return 0
+        end
 end
-
-function hate.errhand(msg)
-	msg = tostring(msg)
-
-	local function error_printer(msg, layer)
-		print((debug.traceback("Error: " .. tostring(msg), 1+(layer or 1)):gsub("\n\[^\n\]+$", "")))
-	end
-
-	error_printer(msg, 2)
-
-	-- HATE isn't ready for this.
-	if false then
-		return
-	end
-
-	if not hate.window or not hate.graphics or not hate.event then
-		return
-	end
-
-	if not hate.graphics.isCreated() or not hate.window.isCreated() then
-		if not pcall(hate.window.setMode, 800, 600) then
-			return
-		end
-	end
-
-	-- Reset state.
-	if hate.mouse then
-		hate.mouse.setVisible(true)
-		hate.mouse.setGrabbed(false)
-	end
-	if hate.joystick then
-		for i,v in ipairs(hate.joystick.getJoysticks()) do
-			v:setVibration() -- Stop all joystick vibrations.
-		end
-	end
-	if hate.audio then hate.audio.stop() end
-	hate.graphics.reset()
-	hate.graphics.setBackgroundColor(89, 157, 220)
-	local font = hate.graphics.setNewFont(14)
-
-	hate.graphics.setColor(255, 255, 255, 255)
-
-	local trace = debug.traceback()
-
-	hate.graphics.clear()
-	hate.graphics.origin()
-
-	local err = {}
-
-	table.insert(err, "Error\n")
-	table.insert(err, msg.."\n\n")
-
-	for l in string.gmatch(trace, "(.-)\n") do
-		if not string.match(l, "boot.lua") then
-			l = string.gsub(l, "stack traceback:", "Traceback\n")
-			table.insert(err, l)
-		end
-	end
-
-	local p = table.concat(err, "\n")
-
-	p = string.gsub(p, "\t", "")
-	p = string.gsub(p, "%\[string \"(.-)\"%\]", "%1")
-
-	local function draw()
-		hate.graphics.clear()
-		hate.graphics.printf(p, 70, 70, hate.graphics.getWidth() - 70)
-		hate.graphics.present()
-	end
-
-	while true do
-		hate.event.pump()
-
-		for e, a, b, c in hate.event.poll() do
-			if e == "quit" then
-				return
-			end
-			if e == "keypressed" and a == "escape" then
-				return
-			end
-		end
-
-		draw()
-
-		if hate.timer then
-			hate.timer.sleep(0.1)
-		end
-	end
-end
-
-return hate
-]]):gsub('\\([%]%[])','%1')
-local loadstring=loadstring; local preload = require"package".preload
-for name, rawcode in pairs(sources) do preload[name]=function(...)return loadstring(rawcode)(...)end end
+for name, rawcode in pairs(sources) do add(name, rawcode, priorities[name]) end
 end;
 do -- preload auto aliasing...
 	local p = require("package").preload
