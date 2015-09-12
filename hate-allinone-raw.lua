@@ -7108,11 +7108,73 @@ registerdefines(sdl)
 return sdl
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.intersect", ([[-- <pack hate.cpml.modules.intersect> --
+--- Various geometric intersections
+-- @module intersect
+
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 local constants = require(current_folder .. "constants")
 
 local intersect = {}
+
+-- *COMPLETELY* untested!
+function intersect.ray_aabb(ray, lb, rt)
+	local min = math.min
+	local max = math.max
+
+	-- ray.direction is unit direction vector of ray
+	local dir = ray.direction:normalize()
+	local dirfrac = vec3(1/dir.x,1/dir.y,1/dir.z)
+
+	-- lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
+	-- ray.point is origin of ray
+	local t1 = (lb.x - ray.point.x)*dirfrac.x
+	local t2 = (rt.x - ray.point.x)*dirfrac.x
+	local t3 = (lb.y - ray.point.y)*dirfrac.y
+	local t4 = (rt.y - ray.point.y)*dirfrac.y
+	local t5 = (lb.z - ray.point.z)*dirfrac.z
+	local t6 = (rt.z - ray.point.z)*dirfrac.z
+
+	local tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6))
+	local tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6))
+
+	-- if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
+	if tmax < 0 then
+		return false
+	end
+
+	-- if tmin > tmax, ray doesn't intersect AABB
+	if tmin > tmax then
+		return false
+	end
+
+	return true, tmin
+end
+
+-- ray = { point, direction }
+-- plane = { point, normal }
+-- https://www.cs.princeton.edu/courses/archive/fall00/cs426/lectures/raycast/sld017.htm
+function intersect.ray_plane(ray, plane)
+	-- t = distance of direction
+	-- d = distance from ray point to plane point
+	-- p = point of intersection
+
+	local d = ray.point:dist(plane.point)
+	local r = ray.direction:dot(plane.normal)
+
+	if r <= 0 then
+		return false
+	end
+
+	local t = -(ray.point:dot(plane.normal) + d) / r
+	local p = ray.point + t * ray.direction
+
+	if p:dot(plane.normal) + d < constants.FLT_EPSILON then
+		return p
+	end
+
+	return false
+end
 
 -- http://www.lighthouse3d.com/tutorials/maths/ray-triangle-intersection/
 function intersect.ray_triangle(ray, triangle)
@@ -7128,7 +7190,7 @@ function intersect.ray_triangle(ray, triangle)
 	local e1 = triangle\[2\] - triangle\[1\]
 	local e2 = triangle\[3\] - triangle\[1\]
 
-	h = d:clone():cross(e2)
+	h = d:cross(e2)
 
 	a = (e1:dot(h))
 
@@ -7144,7 +7206,7 @@ function intersect.ray_triangle(ray, triangle)
 		return false
 	end
 
-	q = s:clone():cross(e1)
+	q = s:cross(e1)
 	v = f * (d:dot(q))
 
 	if v < 0 or u + v > 1 then
@@ -7162,7 +7224,7 @@ function intersect.ray_triangle(ray, triangle)
 	end
 end
 
--- Algorithm is ported from the C algorithm of 
+-- Algorithm is ported from the C algorithm of
 -- Paul Bourke at http://local.wasp.uwa.edu.au/~pbourke/geometry/lineline3d/
 -- Archive.org am hero \o/
 function intersect.line_line(p1, p2, p3, p4)
@@ -7198,6 +7260,31 @@ function intersect.line_line(p1, p2, p3, p4)
 	resultSegmentPoint2.z = p3.z + mub * p43.z
 
 	return true, resultSegmentPoint1, resultSegmentPoint2
+end
+
+function intersect.segment_segment(p1, p2, p3, p4)
+	local collision, c1, c2 = intersect.line_line(p1, p2, p3, p4)
+
+	if collision then
+		if  ((p1 <= c1 and c1 <= p2) or (p1 >= c1 and c1 >= p2))
+		and ((p3 <= c2 and c2 <= p4) or (p3 >= c2 and c2 >= p4)) then
+			return true, c1, c2
+		end
+	end
+end
+
+-- point is a vec3
+-- box.position is a vec3
+-- box.volume is a vec3
+function intersect.point_AABB(point, box)
+	if  box.position.x                <= point.x
+	and box.position.x + box.volume.x >= point.x
+	and box.position.y                <= point.y
+	and box.position.y + box.volume.y >= point.y
+	and box.position.z                <= point.z
+	and box.position.z + box.volume.z >= point.z then
+		return true
+	end
 end
 
 function intersect.circle_circle(c1, c2)
@@ -7240,35 +7327,54 @@ THE SOFTWARE.
 -- Modified to include 3D capabilities by Bill Shillito, April 2014
 -- Various bug fixes by Colby Klein, October 2014
 
+--- 3 dimensional vectors.
+-- @module vec3
+-- @alias vector
+
 local assert = assert
 local sqrt, cos, sin, atan2, acos = math.sqrt, math.cos, math.sin, math.atan2, math.acos
 
 local vector = {}
 vector.__index = vector
 
+--- Instance a new vec3.
+-- @param x X value, table containing 3 elements, or another vector.
+-- @param y Y value
+-- @param z Z value
+-- @return vec3
 local function new(x,y,z)
+	-- allow construction via vec3(a, b, c), vec3 { a, b, c } or vec3 { x = a, y = b, z = c }
 	if type(x) == "table" then
-		return setmetatable({x = x.x or x\[1\] or 0, y = x.y or x\[2\] or 0, z = x.z or x\[3\] or 0}, vector)
+		return setmetatable({x=x.x or x\[1\] or 0, y=x.y or x\[2\] or 0, z=x.z or x\[3\] or 0}, vector)
 	end
-
 	return setmetatable({x = x or 0, y = y or 0, z = z or 0}, vector)
 end
-local zero = new(0,0,0)
 
 local function isvector(v)
-	return type(v) == 'table' and type(v.x) == 'number' and type(v.y) == 'number' and type(v.z) == 'number'
+	return getmetatable(v) == vector or type(v.x and v.y and v.z) == "number"
 end
 
+local zero = new(0,0,0)
+local unit_x = new(1,0,0)
+local unit_y = new(0,1,0)
+local unit_z = new(0,0,1)
+
+--- Create a new vector containing the same data.
+-- @return vec3
 function vector:clone()
 	return new(self.x, self.y, self.z)
 end
 
+--- Unpack the vector into its components.
+-- @return float
+-- @return float
+-- @return float
 function vector:unpack()
 	return self.x, self.y, self.z
 end
 
 function vector:__tostring()
-	return "("..tonumber(self.x)..","..tonumber(self.y)..","..tonumber(self.z)..")"
+	return string.format("(%+0.3f,%+0.3f,%+0.3f)", self.x, self.y, self.z)
 end
 
 function vector.__unm(a)
@@ -7297,8 +7403,14 @@ function vector.__mul(a,b)
 end
 
 function vector.__div(a,b)
-	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
-	return new(a.x / b, a.y / b, a.z / b)
+	if type(a) == "number" then
+		return new(a / b.x, a / b.y, a / b.z)
+	elseif type(b) == "number" then
+		return new(a.x / b, a.y / b, a.z / b)
+	else
+		assert(isvector(a) and isvector(b), "Div: wrong argument types (<vector> or <number> expected)")
+		return new(a.x/b.x, a.y/b.y, a.z/b.z)
+	end
 end
 
 function vector.__eq(a,b)
@@ -7315,6 +7427,10 @@ function vector.__le(a,b)
 	return a.x <= b.x and a.y <= b.y and a.z <= b.z
 end
 
+--- Dot product.
+-- @param a first vec3 to dot with
+-- @param b second vec3 to dot with
+-- @return float
 function vector.dot(a,b)
 	assert(isvector(a) and isvector(b), "dot: wrong argument types (<vector> expected)")
 	return a.x*b.x + a.y*b.y + a.z*b.z
@@ -7324,10 +7440,16 @@ function vector:len2()
 	return self.x * self.x + self.y * self.y + self.z * self.z
 end
 
+--- Vector length/magnitude.
+-- @return float
 function vector:len()
 	return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
 end
 
+--- Distance between two points.
+-- @param a first point
+-- @param b second point
+-- @return float
 function vector.dist(a, b)
 	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
 	local dx = a.x - b.x
@@ -7336,6 +7458,10 @@ function vector.dist(a, b)
 	return sqrt(dx * dx + dy * dy + dz * dz)
 end
 
+--- Squared distance between two points.
+-- @param a first point
+-- @param b second point
+-- @return float
 function vector.dist2(a, b)
 	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
 	local dx = a.x - b.x
@@ -7344,6 +7470,9 @@ function vector.dist2(a, b)
 	return (dx * dx + dy * dy + dz * dz)
 end
 
+--- Normalize vector.
+-- Scales the vector in place such that its length is 1.
+-- @return vec3
 function vector:normalize_inplace()
 	local l = self:len()
 	if l > 0 then
@@ -7352,10 +7481,17 @@ function vector:normalize_inplace()
 	return self
 end
 
+--- Normalize vector.
+-- Returns a copy of the vector scaled such that its length is 1.
+-- @return vec3
 function vector:normalize()
 	return self:clone():normalize_inplace()
 end
 
+--- Rotate vector about an axis.
+-- @param phi Amount to rotate, in radians
+-- @param axis Axis to rotate by
+-- @return vec3
 function vector:rotate(phi, axis)
 	if axis == nil then return self end
 
@@ -7395,16 +7531,16 @@ end
 
 function vector:mirror_on(v)
 	assert(isvector(v), "invalid argument: cannot mirror vector on " .. type(v))
-	-- 2 * self:projectOn(v) - self
 	local s = 2 * (self.x * v.x + self.y * v.y + self.z * v.z) / (v.x * v.x + v.y * v.y + v.z * v.z)
 	return new(s * v.x - self.x, s * v.y - self.y, s * v.z - self.z)
 end
 
+--- Cross product.
+-- @param v vec3 to cross with
+-- @return vec3
 function vector:cross(v)
-	-- Cross product.
 	assert(isvector(v), "cross: wrong argument types (<vector> expected)")
 	return new(self.y*v.z - self.z*v.y, self.z*v.x - self.x*v.z, self.x*v.y - self.y*v.x)
-	--return self.x * v.y - self.y * v.x
 end
 
 -- ref.: http://blog.signalsondisplay.com/?p=336
@@ -7418,7 +7554,7 @@ end
 function vector:angle_to(other)
 	-- Only makes sense in 2D.
 	if other then
-		return atan2(self.y, self.x) - atan2(other.y, other.x)
+		return atan2(self.y-other.y, self.x-other.x)
 	end
 	return atan2(self.y, self.x)
 end
@@ -7448,10 +7584,22 @@ function vector.lerp(a, b, s)
 end
 
 -- the module
-return setmetatable({new = new, isvector = isvector, zero = zero},
-{__call = function(_, ...) return new(...) end})
+return setmetatable(
+	{
+		new      = new,
+		isvector = isvector,
+		zero     = zero,
+		unit_x   = unit_x,
+		unit_y   = unit_y,
+		unit_z   = unit_z
+	}, {
+		__call = function(_, ...) return new(...) end
+	}
+)
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.constants", ([[-- <pack hate.cpml.modules.constants> --
+-- @module constants
+
 local constants = {}
 
 -- same as C's FLT_EPSILON
@@ -7463,6 +7611,9 @@ constants.DOT_THRESHOLD = 0.9995
 return constants
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.simplex", ([[-- <pack hate.cpml.modules.simplex> --
+--- Simplex Noise
+-- @module simplex
+
 --
 -- Based on code in "Simplex noise demystified", by Stefan Gustavson
 -- www.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf
@@ -7745,7 +7896,7 @@ do
 	function M.Simplex4D (x, y, z, w)
 		--\[\[
 			4D skew factors:
-			F = (math.sqrt(5) - 1) / 4 
+			F = (math.sqrt(5) - 1) / 4
 			G = (5 - math.sqrt(5)) / 20
 			G2 = 2 * G
 			G3 = 3 * G
@@ -7820,8 +7971,12 @@ end
 return M
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.quat", ([[-- <pack hate.cpml.modules.quat> --
+--- Quaternions
+-- @module quat
+-- @alias quaternion
+
 -- quaternions
--- Author: Andrew Stacey
+-- @author Andrew Stacey
 -- Website: http://www.math.ntnu.no/~stacey/HowDidIDoThat/iPad/Codea.html
 -- Licence: CC0 http://wiki.creativecommons.org/CC0
 
@@ -7844,65 +7999,77 @@ real numbers or by giving the scalar part and the vector part.
 local function new(...)
 	local x, y, z, w
 	-- copy
-	local arg = {...}
-	if #arg == 1 and type(arg\[1\]) == "table" then
-		x = arg\[1\].x
-		y = arg\[1\].y
-		z = arg\[1\].z
-		w = arg\[1\].w
+	local arg = { select(1, ...) or 0, select(2, ...) or 0, select(3, ...) or 0, select(4, ...) or 0 }
+	local n = select('#', ...)
+	if n == 1 and type(arg\[1\]) == "table" then
+		x = arg\[1\].x or arg\[1\]\[1\]
+		y = arg\[1\].y or arg\[1\]\[2\]
+		z = arg\[1\].z or arg\[1\]\[3\]
+		w = arg\[1\].w or arg\[1\]\[4\]
 	-- four numbers
-	elseif #arg == 4 then
+	elseif n == 4 then
 		x = arg\[1\]
 		y = arg\[2\]
 		z = arg\[3\]
 		w = arg\[4\]
 	-- real number plus vector
-	elseif #arg == 2 then
+	elseif n == 2 then
 		x = arg\[1\].x or arg\[1\]\[1\]
 		y = arg\[1\].y or arg\[1\]\[2\]
 		z = arg\[1\].z or arg\[1\]\[3\]
 		w = arg\[2\]
 	else
+		print(string.format("%s %s %s %s", select(1, ...), select(2, ...), select(3, ...), select(4, ...)))
 		error("Incorrect number of arguments to quaternion")
 	end
 
-	return setmetatable({ x = x or 0, y = y or 0, z = z or 0, w = w or 0 }, quaternion)
+	return setmetatable({ x = x or 0, y = y or 0, z = z or 0, w = w or 1 }, quaternion)
 end
 
-function quaternion:__add(q)
-	if type(q) == "number" then
-		return new(self.x, self.y, self.z, self.w + q)
-	else
-		return new(self.x + q.x, self.y + q.y, self.z + q.z, self.w + q.w)
+function quaternion.__add(a, b)
+	if type(b) == "number" then
+		return new(a.x, a.y, a.z, a.w + b)
 	end
+
+	return new(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w)
 end
 
-function quaternion:__sub(q)
-	return new(self.x - q.x, self.y - q.y, self.z - q.z, self.w - q.w)
+function quaternion.__sub(a, b)
+	return new(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w)
 end
 
 function quaternion:__unm()
 	return self:scale(-1)
 end
 
-function quaternion:__mul(q)
-	if type(q) == "number" then
-		return self:scale(q)
-	elseif type(q) == "table" then
-		local x,y,z,w
-		x = self.w * q.x + self.x * q.w + self.y * q.z - self.z * q.y
-		y = self.w * q.y - self.x * q.z + self.y * q.w + self.z * q.x
-		z = self.w * q.z + self.x * q.y - self.y * q.x + self.z * q.w
-		w = self.w * q.w - self.x * q.x - self.y * q.y - self.z * q.z
-		return new(x,y,z,w)
+function quaternion.__mul(a, b)
+	-- quat * number
+	if type(b) == "number" then
+		return a:scale(b)
+	-- quat * quat
+	elseif type(b) == "table" and b.w then
+		local x, y, z, w
+
+		x = a.x * b.w + a.w * b.x + a.y * b.z - a.z * b.y
+		y = a.y * b.w + a.w * b.y + a.z * b.x - a.x * b.z
+		z = a.z * b.w + a.w * b.z + a.x * b.y - a.y * b.x
+		w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+
+		return new(x, y, z, w)
+	else
+		local qv  = vec3(a.x, a.y, a.z)
+		local uv  = qv:cross(b)
+		local uuv = qv:cross(uv)
+
+		return b + ((uv * a.w) + uuv) * 2
 	end
 end
 
-function quaternion:__div(q)
-	if type(q) == "number" then
-		return self:scale(1/q)
-	elseif type(q) == "table" then
-		return self * q:reciprocal()
+function quaternion.__div(a, b)
+	if type(b) == "number" then
+		return a:scale(1 / b)
+	elseif type(b) == "table" then
+		return a * b:reciprocal()
 	end
 end
 
@@ -7916,38 +8083,45 @@ function quaternion:__pow(n)
 	end
 end
 
-function quaternion:__eq(q)
-	if self.x ~= q.x or self.y ~= q.y or self.z ~= q.z or self.w ~= q.w then
+function quaternion.__eq(a, b)
+	if a.x ~= b.x or a.y ~= b.y or a.z ~= b.z or a.w ~= b.w then
 		return false
 	end
+
 	return true
 end
 
 function quaternion:__tostring()
-	return "("..tonumber(self.x)..","..tonumber(self.y)..","..tonumber(self.z)..","..tonumber(self.w)..")"
+	return string.format("(%0.3f,%0.3f,%0.3f,%0.3f)", self.x, self.y, self.z, self.x)
+end
+
+function quaternion:unpack()
+	return self.x, self.y, self.z, self.w
 end
 
 function quaternion.unit()
-	return new(0,0,0,1)
+	return new(0, 0, 0, 1)
 end
 
 function quaternion:to_axis_angle()
-	local tmp = self
-	if tmp.w > 1 then
-		tmp = tmp:normalize()
+	if self.w > 1 then
+		self = self:normalize()
 	end
-	local angle = 2 * math.acos(tmp.w)
-	local s = math.sqrt(1-tmp.w*tmp.w)
+
+	local angle = 2 * math.acos(self.w)
+	local s     = math.sqrt(1-self.w*self.w)
 	local x, y, z
+
 	if s < constants.FLT_EPSILON then
-		x = tmp.x
-		y = tmp.y
-		z = tmp.z
+		x = self.x
+		y = self.y
+		z = self.z
 	else
-		x = tmp.x / s -- normalize axis
-		y = tmp.y / s
-		z = tmp.z / s
+		x = self.x / s -- normalize axis
+		y = self.y / s
+		z = self.z / s
 	end
+
 	return angle, { x, y, z }
 end
 
@@ -7957,6 +8131,7 @@ function quaternion:is_zero()
 	if self.x ~= 0 or self.y ~= 0 or self.z ~= 0 or self.w ~= 0 then
 		return false
 	end
+
 	return true
 end
 
@@ -7966,6 +8141,7 @@ function quaternion:is_real()
 	if self.x ~= 0 or self.y ~= 0 or self.z ~= 0 then
 		return false
 	end
+
 	return true
 end
 
@@ -7975,12 +8151,22 @@ function quaternion:is_imaginary()
 	if self.w ~= 0 then
 		return false
 	end
+
 	return true
 end
 
 -- The dot product of two quaternions
 function quaternion.dot(a, b)
 	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
+end
+
+function quaternion.cross(a, b)
+	return new(
+		a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+		a.w * b.y + a.y * b.w + a.z * b.x - a.x * b.z,
+		a.w * b.z + a.z * b.w + a.x * b.y - a.y * b.x,
+		a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+	)
 end
 
 -- Length of a quaternion
@@ -7990,7 +8176,7 @@ end
 
 -- Length squared of a quaternion
 function quaternion:len2()
-	return self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
+	return self:dot(self)
 end
 
 -- Normalize a quaternion to have length 1
@@ -7999,18 +8185,23 @@ function quaternion:normalize()
 		error("Unable to normalize a zero-length quaternion")
 		return false
 	end
-	local l = 1/self:len()
+
+	local l = 1 / self:len()
 	return self:scale(l)
 end
 
 -- Scale the quaternion
 function quaternion:scale(l)
-	return new(self.x * l,self.y * l,self.z * l, self.w * l)
+	return new(self.x * l, self.y * l, self.z * l, self.w * l)
 end
 
 -- Conjugation (corresponds to inverting a rotation)
 function quaternion:conjugate()
 	return new(-self.x, -self.y, -self.z, self.w)
+end
+
+function quaternion:inverse()
+	return self:conjugate():normalize()
 end
 
 -- Reciprocal: 1/q
@@ -8019,15 +8210,21 @@ function quaternion:reciprocal()
 		error("Cannot reciprocate a zero quaternion")
 		return false
 	end
+
 	local q = self:conjugate()
 	local l = self:len2()
-	q = q:scale(1/l)
+	q = q:scale(1 / l)
+
 	return q
 end
 
 -- Returns the real part
 function quaternion:real()
 	return self.w
+end
+
+function quaternion:clone()
+	return new(self.x, self.y, self.z, self.w)
 end
 
 -- Returns the vector (imaginary) part as a Vec3 object
@@ -8040,15 +8237,19 @@ Converts a rotation to a quaternion. The first argument is the angle
 to rotate, the second must specify an axis as a Vec3 object.
 --\]\]
 
-function quaternion:rotate(a,axis)
-	local q,c,s
-	q = new(axis, 0)
-	q = q:normalize()
-	c = math.cos(a)
-	s = math.sin(a)
-	q = q:scale(s)
-	q = q + c
-	return q
+local function rotate(angle, axis)
+	local len = axis:len()
+
+	if math.abs(len - 1) > 0.001 then
+		axis.x = axis.x / len
+		axis.y = axis.y / len
+		axis.z = axis.z / len
+	end
+
+	local sin = math.sin(angle * 0.5)
+	local cos = math.cos(angle * 0.5)
+
+	return new(axis.x * sin, axis.y * sin, axis.z * sin, cos)
 end
 
 function quaternion:to_euler()
@@ -8078,9 +8279,10 @@ function quaternion:to_euler()
 		roll = 0
 		return pitch, yaw, roll
 	end
-	yaw = math.atan2(2*self.y*self.w-2*self.x*self.z , sqx - sqy - sqz + sqw)
+
+	yaw   = math.atan2(2*self.y*self.w-2*self.x*self.z , sqx - sqy - sqz + sqw)
 	pitch = math.asin(2*test/unit)
-	roll = math.atan2(2*self.x*self.w-2*self.y*self.z , -sqx + sqy - sqz + sqw)
+	roll  = math.atan2(2*self.x*self.w-2*self.y*self.z , -sqx + sqy - sqz + sqw)
 
 	return pitch, roll, yaw
 end
@@ -8116,15 +8318,24 @@ end
 
 -- return quaternion
 -- the module
-return setmetatable({ new = new },
+return setmetatable({ new = new, rotate = rotate },
 { __call = function(_, ...) return new(...) end })
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.color", ([[-- <pack hate.cpml.modules.color> --
+--- Color utilities
+-- @module color
+
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local utils = require(current_folder .. "utils")
 local color = {}
 local function new(r, g, b, a)
-	return setmetatable({r or 0, g or 0, b or 0, a or 255}, color)
+	return setmetatable({
+		r, g, b, a
+		-- utils.clamp(r or 0, 0, 255),
+		-- utils.clamp(g or 0, 0, 255),
+		-- utils.clamp(b or 0, 0, 255),
+		-- utils.clamp(a or 255, 0, 255)
+	}, color)
 end
 color.__index = color
 color.__call = function(_, ...) return new(...) end
@@ -8140,6 +8351,32 @@ function color.lighten(c, v)
 		utils.clamp(c\[3\] + v * 255, 0, 255),
 		c\[4\]
 	)
+end
+
+function color.__tostring(a)
+	return string.format("\[ %3.0f, %3.0f, %3.0f, %3.0f \]", a\[1\], a\[2\], a\[3\], a\[4\])
+end
+
+function color.__add(a, b)
+	return new(a\[1\] + b\[1\], a\[2\] + b\[2\], a\[3\] + b\[3\], a\[4\] + b\[4\])
+end
+
+function color.__sub(a, b)
+	return new(a\[1\] - b\[1\], a\[2\] - b\[2\], a\[3\] - b\[3\], a\[4\] - b\[4\])
+end
+
+function color.__mul(a, b)
+	if type(a) == "number" then
+		return new(a * b\[1\], a * b\[2\], a * b\[3\], a * b\[4\])
+	elseif type(b) == "number" then
+		return new(b * a\[1\], b * a\[2\], b * a\[3\], b * a\[4\])
+	else
+		return new(a\[1\] * b\[1\], a\[2\] * b\[2\], a\[3\] * b\[3\], a\[4\] * b\[4\])
+	end
+end
+
+function color.lerp(a, b, s)
+	return a + s * (b - a)
 end
 
 function color.darken(c, v)
@@ -8345,12 +8582,17 @@ end
 return setmetatable({new = new}, color)
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.mat4", ([[-- <pack hate.cpml.modules.mat4> --
+--- 4x4 matrices
+-- @module mat4
+
 -- double 4x4, 1-based, column major
 -- local matrix = {}
 
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local constants = require(current_folder .. "constants")
+local vec2 = require(current_folder .. "vec2")
 local vec3 = require(current_folder .. "vec3")
+local quat = require(current_folder .. "quat")
 
 local mat4 = {}
 mat4.__index = mat4
@@ -8374,6 +8616,47 @@ local function matrix_mult_nxn(m1, m2)
 	return mtx
 end
 
+function mat4.from_direction(direction, up)
+	local forward = direction:normalize()
+	local side = forward:cross(up):normalize()
+	local new_up = side:cross(forward):normalize()
+
+	local view = mat4()
+	view\[1\]  = side.x
+	view\[5\]  = side.y
+	view\[9\]  = side.z
+
+	view\[2\]  = new_up.x
+	view\[6\]  = new_up.y
+	view\[10\] = new_up.z
+
+	view\[3\]  = forward.x
+	view\[7\]  = forward.y
+	view\[11\] = forward.z
+
+	view\[16\] = 1
+
+	return view
+end
+
+function mat4:to_quat()
+	local m = self:transpose():to_vec4s()
+	local w = math.sqrt(1 + m\[1\]\[1\] + m\[2\]\[2\] + m\[3\]\[3\]) / 2
+	local scale = w * 4
+	-- return quat(
+	-- 	m\[2\]\[3\] - m\[3\]\[2\] / scale,
+	-- 	m\[3\]\[1\] - m\[1\]\[3\] / scale,
+	-- 	m\[1\]\[2\] - m\[2\]\[1\] / scale,
+	-- 	w
+	-- ):normalize()
+	return quat(
+		m\[3\]\[2\] - m\[2\]\[3\] / scale,
+		m\[1\]\[3\] - m\[3\]\[1\] / scale,
+		m\[2\]\[1\] - m\[1\]\[2\] / scale,
+		w
+	):normalize()
+end
+
 function mat4:__call(v)
 	local m = {
 		1, 0, 0, 0,
@@ -8383,7 +8666,7 @@ function mat4:__call(v)
 	}
 	if type(v) == "table" and #v == 16 then
 		for i=1,16 do
-			m\[i\] = v\[i\]
+			m\[i\] = tonumber(v\[i\])
 		end
 	elseif type(v) == "table" and #v == 9 then
 		m\[1\], m\[2\], m\[3\] = v\[1\], v\[2\], v\[3\]
@@ -8440,25 +8723,108 @@ function mat4:ortho(left, right, top, bottom, near, far)
 	return out
 end
 
+-- Adapted from the Oculus SDK.
+function mat4:hmd_perspective(tanHalfFov, zNear, zFar, flipZ, farAtInfinity)
+	-- CPML is right-handed and intended for GL, so these don't need to be arguments.
+	local rightHanded = true
+	local isOpenGL    = true
+	local function CreateNDCScaleAndOffsetFromFov(tanHalfFov)
+		x_scale  = 2 / (tanHalfFov.LeftTan + tanHalfFov.RightTan)
+		x_offset =     (tanHalfFov.LeftTan - tanHalfFov.RightTan) * x_scale * 0.5
+		y_scale  = 2 / (tanHalfFov.UpTan   + tanHalfFov.DownTan )
+		y_offset =     (tanHalfFov.UpTan   - tanHalfFov.DownTan ) * y_scale * 0.5
+
+		local result = {
+			Scale  = vec2(x_scale, y_scale),
+			Offset = vec2(x_offset, y_offset)
+		}
+
+		-- Hey - why is that Y.Offset negated?
+		-- It's because a projection matrix transforms from world coords with Y=up,
+		-- whereas this is from NDC which is Y=down.
+		 return result
+	end
+
+	if not flipZ and farAtInfinity then
+		print("Error: Cannot push Far Clip to Infinity when Z-order is not flipped")
+		farAtInfinity = false
+	end
+
+	 -- A projection matrix is very like a scaling from NDC, so we can start with that.
+	local scaleAndOffset = CreateNDCScaleAndOffsetFromFov(tanHalfFov)
+	local handednessScale = rightHanded and -1.0 or 1.0
+	local projection = mat4()
+
+	-- Produces X result, mapping clip edges to \[-w,+w\]
+	projection\[1\] = scaleAndOffset.Scale.x
+	projection\[2\] = 0
+	projection\[3\] = handednessScale * scaleAndOffset.Offset.x
+	projection\[4\] = 0
+
+	-- Produces Y result, mapping clip edges to \[-w,+w\]
+	-- Hey - why is that YOffset negated?
+	-- It's because a projection matrix transforms from world coords with Y=up,
+	-- whereas this is derived from an NDC scaling, which is Y=down.
+	projection\[5\] = 0
+	projection\[6\] = scaleAndOffset.Scale.y
+	projection\[7\] = handednessScale * -scaleAndOffset.Offset.y
+	projection\[8\] = 0
+
+	-- Produces Z-buffer result - app needs to fill this in with whatever Z range it wants.
+	-- We'll just use some defaults for now.
+	projection\[9\]  = 0
+	projection\[10\] = 0
+
+	if farAtInfinity then
+		if isOpenGL then
+			-- It's not clear this makes sense for OpenGL - you don't get the same precision benefits you do in D3D.
+			projection\[11\] = -handednessScale
+			projection\[12\] = 2.0 * zNear
+		else
+			projection\[11\] = 0
+			projection\[12\] = zNear
+		end
+	else
+		if isOpenGL then
+			-- Clip range is \[-w,+w\], so 0 is at the middle of the range.
+			projection\[11\] = -handednessScale * (flipZ and -1.0 or 1.0) * (zNear + zFar) / (zNear - zFar)
+			projection\[12\] = 2.0 * ((flipZ and -zFar or zFar) * zNear) / (zNear - zFar)
+		else
+			-- Clip range is \[0,+w\], so 0 is at the start of the range.
+			projection\[11\] = -handednessScale * (flipZ and -zNear or zFar) / (zNear - zFar)
+			projection\[12\] = ((flipZ and -zFar or zFar) * zNear) / (zNear - zFar)
+		end
+	end
+
+	-- Produces W result (= Z in)
+	projection\[13\] = 0
+	projection\[14\] = 0
+	projection\[15\] = handednessScale
+	projection\[16\] = 0
+
+	return projection:transpose()
+end
+
 function mat4:perspective(fovy, aspect, near, far)
 	assert(aspect ~= 0)
 	assert(near ~= far)
 
-	local t = math.tan(fovy / 2)
-	local result = mat4(
+	local t = math.tan(math.rad(fovy) / 2)
+	local result = {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0
-	)
+	}
 
-	result\[1\] = 1 / (aspect * t)
-	result\[6\] = 1 / t
-	result\[11\] = - (far + near) / (far - near)
-	result\[12\] = - 1
-	result\[15\] = - (2 * far * near) / (far - near)
+	result\[1\]  = 1 / (t * aspect)
+	result\[6\]  = 1 / t
+	result\[11\] = -(far + near) / (far - near)
+	result\[12\] = -1
+	result\[15\] = -(2 * far * near) / (far - near)
+	result\[16\] = 1
 
-	return result
+	return mat4(result)
 end
 
 function mat4:translate(t)
@@ -8669,7 +9035,7 @@ end
 -- https://github.com/g-truc/glm/blob/master/glm/gtc/matrix_transform.inl#L338
 -- Note: GLM calls the view matrix "model"
 function mat4.unproject(win, view, projection, viewport)
-	local inverse = (projection:transpose() * view:transpose()):invert()
+	local inverse = (view * projection):invert()
 	local position = { win.x, win.y, win.z, 1 }
 	position\[1\] = (position\[1\] - viewport\[1\]) / viewport\[3\]
 	position\[2\] = (position\[2\] - viewport\[2\]) / viewport\[4\]
@@ -8695,24 +9061,21 @@ function mat4:look_at(eye, center, up)
 	local new_up = side:cross(forward):normalize()
 
 	local view = mat4()
-	view\[1\]	= side.x
-	view\[5\]	= side.y
-	view\[9\]	= side.z
+	view\[1\]  = side.x
+	view\[5\]  = side.y
+	view\[9\]  = side.z
 
-	view\[2\]	= new_up.x
-	view\[6\]	= new_up.y
-	view\[10\]= new_up.z
+	view\[2\]  = new_up.x
+	view\[6\]  = new_up.y
+	view\[10\] = new_up.z
 
-	view\[3\]	= -forward.x
-	view\[7\]	= -forward.y
-	view\[11\]= -forward.z
+	view\[3\]  = -forward.x
+	view\[7\]  = -forward.y
+	view\[11\] = -forward.z
 
-	view\[16\]= 1
+	view\[16\] = 1
 
-	-- Fix 1u offset
-	local new_eye = eye + forward
-
-	local out = mat4():translate(-new_eye) * view
+	local out = mat4():translate(-eye - forward) * view
 	return out * self
 end
 
@@ -8734,7 +9097,7 @@ end
 -- Multiply mat4 by a mat4. Tested OK
 function mat4:__mul(m)
 	if #m == 4 then
-		local tmp = matrix_mult_nxn(self:to_vec4s(), { {m\[1\]}, {m\[2\]}, {m\[3\]}, {m\[4\]} })
+		local tmp = matrix_mult_nxn(self:transpose():to_vec4s(), { {m\[1\]}, {m\[2\]}, {m\[3\]}, {m\[4\]} })
 		local v = {}
 		for i=1, 4 do
 			v\[i\] = tmp\[i\]\[1\]
@@ -8763,17 +9126,20 @@ end
 return mat4
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.quadtree", ([[-- <pack hate.cpml.modules.quadtree> --
+--- Quadtrees
+-- @module quadtree
+
 -- based on a gist from mentlerd
 -- https://gist.github.com/mentlerd/4587030
 local quadtree = {}
 
 quadtree.__index = quadtree
 
-function new()
-  local t = { 
+local function new()
+  local t = {
 		root = {
-			size = 1, 
-		
+			size = 1,
+
 			x = 0,
 			y = 0,
 		}
@@ -8787,36 +9153,36 @@ function quadtree:expand_if_needed(x, y)
 	local root = self.root
 
 	local size = root.size
-	
+
 	-- Relative coordinates
 	local rX = x - root.x
 	local rY = y - root.y
-	
+
 	-- Out of bounds marks
 	local xPos = rX >= size
 	local xNeg = rX < -size
-	
+
 	local yPos = rY >= size
 	local yNeg = rY < -size
-		
+
 	-- Check if the point is in the bounds
 	if xPos or xNeg or
 		yPos or yNeg then
-		
+
 		-- Change the root node to fit
 		local node = {
 			size = size * 2,
-			
+
 			x = 0,
 			y = 0,
 		}
 
 		local index = 0
-		
+
 		-- Offset the new root, and place the old into it
 		if rX >= 0 then node.x = root.x + size end
 		if rY >= 0 then node.y = root.y + size end
-		
+
 		if rX < 0 then
 			node.x = root.x - size
 			index = index + 1
@@ -8832,10 +9198,10 @@ function quadtree:expand_if_needed(x, y)
 		root.size = nil
 		root.x = nil
 		root.y = nil
-		
+
 		-- Set the new root
 		self.root = node
-		
+
 		-- Repeat until the size is sufficient
 		self:expand_if_needed(x, y)
 	end
@@ -8843,41 +9209,41 @@ end
 
 function quadtree:get(x, y)
 	self:expand_if_needed(x, y)
-	
+
 	-- Convert the coordinates relative to the root
 	local node = self.root
 	local size = node.size
-	
+
 	local rX = x - node.x
 	local rY = y - node.y
-	
+
 	while true do
 		size = size / 2
 
 		local index = 0
-		
+
 		-- Seek, and offset the point for the next node
-		if rX >= 0 then 
+		if rX >= 0 then
 			index = index + 1
-			rX = rX - size 
+			rX = rX - size
 		else
 			rX = rX + size
 		end
-				
+
 		if rY >= 0 then
-			index = index + 2 
+			index = index + 2
 			rY = rY - size
 		else
 			rY = rY + size
 		end
-				
+
 		-- Get the node/value at the calculated index
 		local child = node\[index\]
-		
+
 		if type(child) ~= "table" then
 			return child
 		end
-		
+
 		-- We must go deeper!
 		node = child
 	end
@@ -8887,37 +9253,37 @@ function quadtree:set(x, y, value)
 	local function merge_if_possible(stack, path, ref)
 		for i = #stack, 1, -1 do
 			local node = stack\[i\]
-			
-			-- Check if every value is the same in the node		
+
+			-- Check if every value is the same in the node
 			for x = 0, 7, 1 do
 				if ref ~= node\[x\] then
 					-- Break if any is not
 					return
 				end
 			end
-			
+
 			-- Successful merge
 			stack\[i -1\]\[path\[i\]\] = ref
 		end
 	end
 
 	self:expand_if_needed(x, y)
-	
+
 	-- Convert the coordinates relative to the root
 	local node = self.root
 	local size = node.size
-	
+
 	local rX = x - node.x
 	local rY = y - node.y
-	
+
 	local stack = {}
 	local path = {}
-	
-	while true do	
+
+	while true do
 		size = size / 2
 
 		local index = 0
-		
+
 		if rX >= 0 then
 			index = index + 1
 			rX = rX - size
@@ -8926,47 +9292,47 @@ function quadtree:set(x, y, value)
 		end
 
 		if rY >= 0 then
-			index = index + 2 
+			index = index + 2
 			rY = rY - size
 		else
 			rY = rY + size
 		end
-				
+
 		table.insert(stack, node)
 		table.insert(path, index)
-		
+
 		-- Get the node/value at the calculated index
 		local child = node\[index\]
-		
+
 		if type(child) ~= "table" then
 			if (child ~= value) then
 				-- No node/value present
 				if child == nil then
 					-- If the size is not 1, it needs further populating,
 					-- Otherwise, it just needs a value
-					if size ~= 0.5 then				
+					if size ~= 0.5 then
 						child = {}
 						node\[index\] = child
-					else						
+					else
 						node\[index\] = value
-						
+
 						merge_if_possible(stack, path, value)
 						return
 					end
 				else
 					-- There is a node, but its value does not match, divide it
 					-- If the size is over 1, otherwise, just set the value
-					if size ~= 0.5 then						
+					if size ~= 0.5 then
 						local split = {
 							child, child, child, child
 						}
-						
+
 						child = split
 						node\[index\] = split
-					else					
+					else
 						-- Hit a real leaf, set the value and walk away
 						node\[index\] = value
-						
+
 						merge_if_possible(stack, path, value)
 						return
 					end
@@ -8976,7 +9342,7 @@ function quadtree:set(x, y, value)
 				return
 			end
 		end
-		
+
 		node = child
 	end
 end
@@ -9013,6 +9379,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 \]\]--
 
+--- 2 dimensional vectors
+-- @module vec2
+-- @alias vector
+
 local assert = assert
 local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
 
@@ -9022,11 +9392,12 @@ vector.__index = vector
 local function new(x,y)
 	return setmetatable({x = x or 0, y = y or 0}, vector)
 end
-local zero = new(0,0)
 
 local function isvector(v)
-	return type(v) == 'table' and type(v.x) == 'number' and type(v.y) == 'number'
+	return getmetatable(v) == vector
 end
+
+local zero = new(0,0)
 
 function vector:clone()
 	return new(self.x, self.y)
@@ -9061,13 +9432,19 @@ function vector.__mul(a,b)
 		return new(b*a.x, b*a.y)
 	else
 		assert(isvector(a) and isvector(b), "Mul: wrong argument types (<vector> or <number> expected)")
-		return a.x*b.x + a.y*b.y
+		return new(a.x*b.x, a.y*b.y)
 	end
 end
 
 function vector.__div(a,b)
-	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
-	return new(a.x / b, a.y / b)
+	if type(a) == "number" then
+		return new(a/b.x, a/b.y)
+	elseif type(b) == "number" then
+		return new(b/a.x, b/a.y)
+	else
+		assert(isvector(a) and isvector(b), "Div: wrong argument types (<vector> or <number> expected)")
+		return new(a.x/b.x, a.y/b.y)
+	end
 end
 
 function vector.__eq(a,b)
@@ -9082,9 +9459,9 @@ function vector.__le(a,b)
 	return a.x <= b.x and a.y <= b.y
 end
 
-function vector.permul(a,b)
-	assert(isvector(a) and isvector(b), "permul: wrong argument types (<vector> expected)")
-	return new(a.x*b.x, a.y*b.y)
+function vector.dot(a, b)
+	assert(isvector(a) and isvector(b), "dot: wrong argument types (<vector> expected)")
+	return a.x*b.x + a.y*b.y
 end
 
 function vector:len2()
@@ -9165,7 +9542,7 @@ end
 
 function vector:angle_to(other)
 	if other then
-		return atan2(self.y, self.x) - atan2(other.y, other.x)
+		return atan2(self.y-other.y, self.x-other.x)
 	end
 	return atan2(self.y, self.x)
 end
@@ -9174,12 +9551,14 @@ function vector:trim(maxLen)
 	return self:clone():trim_inplace(maxLen)
 end
 
-
 -- the module
 return setmetatable({new = new, isvector = isvector, zero = zero},
 {__call = function(_, ...) return new(...) end})
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.mesh", ([[-- <pack hate.cpml.modules.mesh> --
+--- Mesh utilities
+-- @module mesh
+
 local current_folder = (...):gsub('%.\[^%.\]+$', '') .. "."
 local vec3 = require(current_folder .. "vec3")
 
@@ -9200,17 +9579,25 @@ end
 return mesh
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.octree", ([[-- <pack hate.cpml.modules.octree> --
+--- Octrees
+-- @module octree
+
 -- based on a gist from mentlerd
 -- https://gist.github.com/mentlerd/4587030
 local octree = {}
 
 octree.__index = octree
 
-function new()
-  local t = { 
+-- TODO: Make placement aware of object sizes
+-- TODO: bounding box query
+-- TODO: ray-octree intersection - find all nodes a ray intersects with, possibly given a distance limit
+-- TODO: ability to store tables would be nice!
+
+local function new()
+  local t = {
 		root = {
-			size = 1, 
-		
+			size = 1,
+
 			x = 0,
 			y = 0,
 			z = 0
@@ -9225,43 +9612,43 @@ function octree:expand_if_needed(x, y, z)
 	local root = self.root
 
 	local size = root.size
-	
+
 	-- Relative coordinates
 	local rX = x - root.x
 	local rY = y - root.y
 	local rZ = z - root.z
-	
+
 	-- Out of bounds marks
 	local xPos = rX >= size
 	local xNeg = rX < -size
-	
+
 	local yPos = rY >= size
 	local yNeg = rY < -size
-	
+
 	local zPos = rZ >= size
 	local zNeg = rZ < -size
-	
+
 	-- Check if the point is in the bounds
 	if xPos or xNeg or
 		yPos or yNeg or
 		zPos or zNeg then
-		
+
 		-- Change the root node to fit
 		local node = {
 			size = size * 2,
-			
+
 			x = 0,
 			y = 0,
 			z = 0
 		}
 
 		local index = 0
-		
+
 		-- Offset the new root, and place the old into it
 		if rX >= 0 then node.x = root.x + size end
 		if rY >= 0 then node.y = root.y + size end
 		if rZ >= 0 then node.z = root.z + size end
-		
+
 		if rX < 0 then
 			node.x = root.x - size
 			index = index + 1
@@ -9282,10 +9669,10 @@ function octree:expand_if_needed(x, y, z)
 		root.x = nil
 		root.y = nil
 		root.z = nil
-		
+
 		-- Set the new root
 		self.root = node
-		
+
 		-- Repeat until the size is sufficient
 		self:expand_if_needed(x, y, z)
 	end
@@ -9293,49 +9680,49 @@ end
 
 function octree:get(x, y, z)
 	self:expand_if_needed(x, y, z)
-	
+
 	-- Convert the coordinates relative to the root
 	local node = self.root
 	local size = node.size
-	
+
 	local rX = x - node.x
 	local rY = y - node.y
 	local rZ = z - node.z
-	
+
 	while true do
 		size = size / 2
 
 		local index = 0
-			
+
 		-- Seek, and offset the point for the next node
-		if rX >= 0 then 
+		if rX >= 0 then
 			index = index + 1
-			rX = rX - size 
+			rX = rX - size
 		else
 			rX = rX + size
 		end
-				
+
 		if rY >= 0 then
-			index = index + 2 
+			index = index + 2
 			rY = rY - size
 		else
 			rY = rY + size
 		end
-		
-		if rZ >= 0 then 
-			index = index + 4 
-			rZ = rZ - size 
+
+		if rZ >= 0 then
+			index = index + 4
+			rZ = rZ - size
 		else
 			rZ = rZ + size
 		end
-		
+
 		-- Get the node/value at the calculated index
 		local child = node\[index\]
-		
-		if type(child) ~= "table" then	
+
+		if type(child) ~= "table" then
 			return child
 		end
-		
+
 		-- We must go deeper!
 		node = child
 	end
@@ -9345,15 +9732,15 @@ local function merge_if_possible(stack, path, ref)
 
 	for i = #stack, 1, -1 do
 		local node = stack\[i\]
-		
-		-- Check if every value is the same in the node		
+
+		-- Check if every value is the same in the node
 		for x = 0, 7, 1 do
 			if ref ~= node\[x\] then
 				-- Break if any is not
 				return
 			end
 		end
-		
+
 		-- Successful merge
 		stack\[i -1\]\[path\[i\]\] = ref
 	end
@@ -9362,24 +9749,24 @@ end
 
 function octree:set(x, y, z, value)
 	self:expand_if_needed(x, y, z)
-	
+
 	-- Convert the coordinates relative to the root
 	local node = self.root
 	local size = node.size
-	
+
 	local rX = x - node.x
 	local rY = y - node.y
 	local rZ = z - node.z
-	
+
 	local stack = {}
 	local path = {}
-	
-	while true do	
+
+	while true do
 		size = size / 2
 
 		local index = 0
-		
-		if rX >= 0 then 
+
+		if rX >= 0 then
 			index = index + 1
 			rX = rX - size
 		else
@@ -9387,55 +9774,55 @@ function octree:set(x, y, z, value)
 		end
 
 		if rY >= 0 then
-			index = index + 2 
+			index = index + 2
 			rY = rY - size
 		else
 			rY = rY + size
 		end
-		
-		if rZ >= 0 then 
+
+		if rZ >= 0 then
 			index = index + 4
 			rZ = rZ - size
 		else
 			rZ = rZ + size
 		end
-		
+
 		table.insert(stack, node)
 		table.insert(path, index)
-		
+
 		-- Get the node/value at the calculated index
 		local child = node\[index\]
-		
+
 		if type(child) ~= "table" then
 			if (child ~= value) then
 				-- No node/value present
 				if child == nil then
 					-- If the size is not 1, it needs further populating,
 					-- Otherwise, it just needs a value
-					if size ~= 0.5 then				
+					if size ~= 0.5 then
 						child = {}
 						node\[index\] = child
-					else						
+					else
 						node\[index\] = value
-						
+
 						merge_if_possible(stack, path, value)
 						return
 					end
 				else
 					-- There is a node, but its value does not match, divide it
 					-- If the size is over 1, otherwise, just set the value
-					if size ~= 0.5 then						
+					if size ~= 0.5 then
 						local split = {
-							child, child, child, child, 
+							child, child, child, child,
 							child, child, child, child
 						}
-						
+
 						child = split
 						node\[index\] = split
-					else					
+					else
 						-- Hit a real leaf, set the value and walk away
 						node\[index\] = value
-						
+
 						merge_if_possible(stack, path, value)
 						return
 					end
@@ -9445,7 +9832,7 @@ function octree:set(x, y, z, value)
 				return
 			end
 		end
-		
+
 		node = child
 	end
 end
@@ -9456,42 +9843,122 @@ return setmetatable(
 )
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.modules.utils", ([[-- <pack hate.cpml.modules.utils> --
+--- Various utility functions
+-- @module utils
+
 local utils = {}
 
-function utils.clamp(v, min, max)
-	return math.max(math.min(v, max), min)
+-- reimplementation of math.frexp, due to its removal from Lua 5.3 :(
+-- courtesy of airstruck
+local log2 = math.log(2)
+
+local frexp = math.frexp or function(x)
+	if x == 0 then return 0, 0 end
+	local e = math.floor(math.log(math.abs(x)) / log2 + 1)
+	return x / 2 ^ e, e
 end
 
-function utils.map(v, min_in, max_in, min_out, max_out)
-	return ((v) - (min_in)) * ((max_out) - (min_out)) / ((max_in) - (min_in)) + (min_out)
+--- Clamps a value within the specified range.
+-- @param value Input value
+-- @param min Minimum output value
+-- @param max Maximum output value
+-- @return number
+function utils.clamp(value, min, max)
+	return math.max(math.min(value, max), min)
 end
 
-function utils.lerp(v, l, h)
-	return v * (h - l) + l
+--- Returns `value` if it is equal or greater than |`size`|, or 0.
+-- @param value
+-- @param size
+-- @return number
+function utils.deadzone(value, size)
+	return math.abs(value) >= size and value or 0
 end
 
-function utils.round(v, precision)
-	if precision then return utils.round(v / precision) * precision end
-	return v >= 0 and math.floor(v+0.5) or math.ceil(v-0.5)
+--- Check if value is equal or greater than threshold.
+-- @param value
+-- @param threshold
+-- @return boolean
+function utils.threshold(value, threshold)
+	-- I know, it barely saves any typing at all.
+	return math.abs(value) >= threshold
 end
 
-function utils.wrap(v, n)
-	if v < 0 then
-		v = v + utils.round(((-v/n)+1))*n
+--- Scales a value from one range to another.
+-- @param value Input value
+-- @param min_in Minimum input value
+-- @param max_in Maximum input value
+-- @param min_out Minimum output value
+-- @param max_out Maximum output value
+-- @return number
+function utils.map(value, min_in, max_in, min_out, max_out)
+	return ((value) - (min_in)) * ((max_out) - (min_out)) / ((max_in) - (min_in)) + (min_out)
+end
+
+--- Linear interpolation.
+-- Performs linear interpolation between 0 and 1 when `low` < `progress` < `high`.
+-- @param progress (0-1)
+-- @param low value to return when `progress` is 0
+-- @param high value to return when `progress` is 1
+-- @return number
+function utils.lerp(progress, low, high)
+	return progress * (high - low) + low
+end
+
+--- Hermite interpolation.
+-- Performs smooth Hermite interpolation between 0 and 1 when `low` < `progress` < `high`.
+-- @param progress (0-1)
+-- @param low value to return when `progress` is 0
+-- @param high value to return when `progress` is 1
+-- @return number
+function utils.smoothstep(progress, low, high)
+	local t = utils.clamp((progress - low) / (high - low), 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+end
+
+--- Round number at a given precision.
+-- Truncates `value` at `precision` points after the decimal (whole number if
+-- left unspecified).
+-- @param value
+-- @param precision
+-- @return number
+function utils.round(value, precision)
+	if precision then return utils.round(value / precision) * precision end
+	return value >= 0 and math.floor(value+0.5) or math.ceil(value-0.5)
+end
+
+--- Wrap `value` around if it exceeds `limit`.
+-- @param value
+-- @param limit
+-- @return number
+function utils.wrap(value, limit)
+	if value < 0 then
+		value = value + utils.round(((-value/limit)+1))*limit
 	end
-	return v % n
+	return value % limit
 end
 
--- from undef: https://love2d.org/forums/viewtopic.php?p=182219#p182219
--- check if a number is a power-of-two
-function utils.is_pot(n)
-  return 0.5 == (math.frexp(n))
+--- Check if a value is a power-of-two.
+-- Returns true if a number is a valid power-of-two, otherwise false.
+-- @author undef
+-- @param value
+-- @return boolean
+function utils.is_pot(value)
+	-- found here: https://love2d.org/forums/viewtopic.php?p=182219#p182219
+	-- check if a number is a power-of-two
+  return (frexp(value)) == 0.5
 end
 
 return utils
 ]]):gsub('\\([%]%[])','%1'))end
 do local loadstring=_G.loadstring or _G.load;(function(name, rawcode)require"package".preload[name]=function(...)return assert(loadstring(rawcode), "loadstring: "..name.." failed")(...)end;end)("hate.cpml.init", ([[-- <pack hate.cpml.init> --
 --\[\[
+-------------------------------------------------------------------------------
+-- @author Colby Klein
+-- @author Landon Manning
+-- @copyright 2015
+-- @license MIT/X11
+-------------------------------------------------------------------------------
                   .'@@@@@@@@@@@@@@#:
               ,@@@@#;            .'@@@@+
            ,@@@'                      .@@@#
